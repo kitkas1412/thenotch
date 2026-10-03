@@ -26,6 +26,9 @@ final class IslandController {
     private var screenObserver: NSObjectProtocol?
     private var mouseMonitors: [Any] = []
     private var pendingOpen: Task<Void, Never>?
+    /// Drag pasteboard `changeCount` when the left mouse button went down,
+    /// while it's held; see `FileDrag`.
+    private var dragChangeCountAtMouseDown: Int?
 
     init(settings: AppSettings) {
         self.settings = settings
@@ -118,6 +121,16 @@ final class IslandController {
         }) {
             mouseMonitors.append(global)
         }
+        // Files dragged from other apps (Finder…) toward the notch. Drags
+        // send these instead of `mouseMoved`.
+        if let drags = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp], handler: { [weak self] event in
+            let type = event.type
+            MainActor.assumeIsolated {
+                self?.mouseDragEvent(type)
+            }
+        }) {
+            mouseMonitors.append(drags)
+        }
         // Over our own panel (once it accepts the mouse) the global monitor
         // sees nothing; IslandHostingView's tracking area reports those moves.
     }
@@ -143,6 +156,73 @@ final class IslandController {
         }
     }
 
+    // MARK: - Dragging files
+
+    /// Module that takes dropped files, if one is enabled.
+    private var fileDropModule: (any FileDropReceiving)? {
+        state.modules.lazy.compactMap { $0 as? any FileDropReceiving }.first
+    }
+
+    private func mouseDragEvent(_ type: NSEvent.EventType) {
+        switch type {
+        case .leftMouseDown:
+            // Only read the pasteboard if a drop could be taken.
+            dragChangeCountAtMouseDown = fileDropModule == nil ? nil : NSPasteboard(name: .drag).changeCount
+        case .leftMouseDragged:
+            mouseDragged()
+        case .leftMouseUp:
+            dragEnded()
+        default:
+            break
+        }
+    }
+
+    private func mouseDragged() {
+        guard let changeCountAtMouseDown = dragChangeCountAtMouseDown, let target = fileDropModule else { return }
+        let action = HoverPolicy.action(
+            isExpanded: state.isExpanded,
+            isDragging: true,
+            pointer: NSEvent.mouseLocation,
+            notch: notch,
+            compactSize: state.compactSize,
+            expandedSize: state.expandedSize
+        )
+        if action == .close {
+            close(animated: true)
+            return
+        }
+        // Near the notch, or over the open island. The pasteboard is only
+        // checked there, so ordinary drags elsewhere cost a rect test.
+        guard action == .open || state.isExpanded else { return }
+        guard state.isDraggingFiles || isFileDrag(since: changeCountAtMouseDown) else { return }
+        state.isDraggingFiles = true
+        if !state.isExpanded {
+            open(pinning: target.id)
+        } else if state.pinnedModuleID != target.id {
+            state.pinnedModuleID = target.id
+            target.islandDidExpand()
+        }
+    }
+
+    private func isFileDrag(since changeCountAtMouseDown: Int) -> Bool {
+        let pasteboard = NSPasteboard(name: .drag)
+        return FileDrag.isFileDrag(
+            changeCount: pasteboard.changeCount,
+            changeCountAtMouseDown: changeCountAtMouseDown,
+            hasFileURLs: pasteboard.types?.contains(.fileURL) ?? false
+        )
+    }
+
+    /// The drag finished (dropped on the island or elsewhere). The island
+    /// stays open if the pointer is still over it, then closes on hover exit.
+    private func dragEnded() {
+        dragChangeCountAtMouseDown = nil
+        guard state.isDraggingFiles else { return }
+        state.isDraggingFiles = false
+        state.isDropTargeted = false
+        mouseMoved()
+    }
+
     /// Opens after `openDelay` if the pointer is still in the entry region,
     /// so merely passing over the notch doesn't open the island.
     private func scheduleOpen() {
@@ -163,12 +243,15 @@ final class IslandController {
         pendingOpen = nil
     }
 
-    private func open() {
+    /// Opens on `moduleID`, or on the module `IslandState.expandedModule`
+    /// picks.
+    private func open(pinning moduleID: String? = nil) {
+        cancelPendingOpen()
         guard !state.isExpanded else { return }
         panel?.ignoresMouseEvents = false
         // Keep showing this module while open, even if another activity
         // (e.g. a battery peek) takes over the compact island meanwhile.
-        state.pinnedModuleID = state.expandedModule?.id
+        state.pinnedModuleID = moduleID ?? state.expandedModule?.id
         withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) {
             state.mode = .expanded
         }

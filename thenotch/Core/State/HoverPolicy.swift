@@ -19,11 +19,19 @@ enum HoverPolicy {
     static let entryPadding: CGFloat = 6
     /// Tolerance around the expanded island before it closes.
     static let exitPadding: CGFloat = 12
+    /// Wider tolerance while files are dragged, so a drag aimed roughly at
+    /// the notch opens the island as a drop target.
+    static let dragEntryPadding: CGFloat = 40
 
     /// Compact island (the notch, plus its wings while an activity is
     /// shown) plus `entryPadding` on the sides and bottom.
     static func entryRect(notch: CGRect, compactSize: CGSize) -> CGRect {
         topAnchoredRect(notch: notch, size: compactSize, padding: entryPadding)
+    }
+
+    /// Compact island plus `dragEntryPadding`, used while files are dragged.
+    static func dragEntryRect(notch: CGRect, compactSize: CGSize) -> CGRect {
+        topAnchoredRect(notch: notch, size: compactSize, padding: dragEntryPadding)
     }
 
     /// Expanded island plus `exitPadding` on the sides and bottom.
@@ -33,6 +41,7 @@ enum HoverPolicy {
 
     static func action(
         isExpanded: Bool,
+        isDragging: Bool = false,
         pointer: CGPoint,
         notch: CGRect,
         compactSize: CGSize,
@@ -41,7 +50,10 @@ enum HoverPolicy {
         if isExpanded {
             return exitRect(notch: notch, expandedSize: expandedSize).contains(pointer) ? .none : .close
         }
-        return entryRect(notch: notch, compactSize: compactSize).contains(pointer) ? .open : .none
+        let entry = isDragging
+            ? dragEntryRect(notch: notch, compactSize: compactSize)
+            : entryRect(notch: notch, compactSize: compactSize)
+        return entry.contains(pointer) ? .open : .none
     }
 
     /// Rect of `size` centered on the notch and hanging from the top of the

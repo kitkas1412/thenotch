@@ -34,3 +34,10 @@ protocol IslandModule: AnyObject {
 extension IslandModule {
     func islandDidExpand() {}
 }
+
+/// A module that takes files dropped on the island (the Shelf). While files
+/// are dragged toward the notch, the island opens on this module.
+@MainActor
+protocol FileDropReceiving: IslandModule {
+    func receive(_ urls: [URL])
+}

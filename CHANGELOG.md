@@ -6,6 +6,11 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Shelf**: drag files from Finder onto the notch to keep them at hand. The island opens as a drop target while you drag; click a file to open it, right-click to show it in Finder or remove it. The shelf lives in memory for now (cleared when you quit).
+- Buttons beside the notch in the expanded island to switch between modules.
+
 ## [0.1.0] - 2026-10-03
 
 First public release (MVP).
