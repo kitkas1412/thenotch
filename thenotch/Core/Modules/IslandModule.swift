@@ -29,10 +29,21 @@ protocol IslandModule: AnyObject {
     /// The island just opened showing this module (e.g. to refresh data
     /// that isn't pushed by notifications).
     func islandDidExpand()
+
+    /// Whether the expanded island has something to show for this module.
+    /// Hovering the notch opens the island only if some module does (Now
+    /// Playing: a playing or paused track; Shelf: files on it).
+    var hasExpandedContent: Bool { get }
+
+    /// Height of the expanded island while it shows this module, including
+    /// the band beside the notch. Must fit in `IslandController.panelSize`.
+    var expandedHeight: CGFloat { get }
 }
 
 extension IslandModule {
     func islandDidExpand() {}
+
+    var expandedHeight: CGFloat { IslandState.defaultExpandedHeight }
 }
 
 /// A module that takes files dropped on the island (the Shelf). While files

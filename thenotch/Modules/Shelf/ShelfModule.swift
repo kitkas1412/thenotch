@@ -65,11 +65,18 @@ final class ShelfModule: FileDropReceiving {
         prune()
     }
 
+    /// Files wait on the shelf. While files are dragged in, the island
+    /// opens on the shelf regardless (it's pinned by the drag).
+    var hasExpandedContent: Bool {
+        !store.items.isEmpty
+    }
+
     func compactLeading() -> AnyView {
         AnyView(
             Image(systemName: "tray.full.fill")
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
+                .accessibilityHidden(true)
         )
     }
 

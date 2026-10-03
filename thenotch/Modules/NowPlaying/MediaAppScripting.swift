@@ -49,6 +49,35 @@ enum MediaAppScripting {
         return await run(script, source: source).map { parseTrack($0, source: source, now: .now) }
     }
 
+    /// Whether the current track is a favorite (Music only). Uses
+    /// `favorited`, or `loved` on Music versions before the rename.
+    static func isFavorite(in source: NowPlayingInfo.Source) async -> Result<Bool, ScriptError> {
+        await runFavoriteScript(source: source) { property in
+            "tell application \"\(source.scriptName)\" to return \(property) of current track"
+        }
+        .map { $0.booleanValue }
+    }
+
+    static func setFavorite(_ favorite: Bool, in source: NowPlayingInfo.Source) async -> Result<Void, ScriptError> {
+        await runFavoriteScript(source: source) { property in
+            "tell application \"\(source.scriptName)\" to set \(property) of current track to \(favorite)"
+        }
+        .map { _ in }
+    }
+
+    /// Runs `script` with `favorited`, then with `loved` if that term
+    /// doesn't exist (the script fails to compile).
+    private static func runFavoriteScript(
+        source: NowPlayingInfo.Source,
+        _ script: (String) -> String
+    ) async -> Result<NSAppleEventDescriptor, ScriptError> {
+        let result = await run(script("favorited"), source: source)
+        if case .failure(.failed) = result {
+            return await run(script("loved"), source: source)
+        }
+        return result
+    }
+
     private static func parseTrack(_ list: NSAppleEventDescriptor, source: NowPlayingInfo.Source, now: Date) -> NowPlayingInfo? {
         guard list.numberOfItems >= 7 else { return nil }
         func string(_ i: Int) -> String { list.atIndex(i)?.stringValue ?? "" }
