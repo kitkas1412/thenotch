@@ -19,12 +19,17 @@ final class IslandController {
     static let openDelay: Duration = .milliseconds(150)
 
     let state = IslandState()
+    private let settings: AppSettings
     private var panel: IslandPanel?
     /// Notch rect (screen coordinates) on the current target screen.
     private var notch: CGRect = .zero
     private var screenObserver: NSObjectProtocol?
     private var mouseMonitors: [Any] = []
     private var pendingOpen: Task<Void, Never>?
+
+    init(settings: AppSettings) {
+        self.settings = settings
+    }
 
     func start() {
         let panel = IslandPanel(contentRect: CGRect(origin: .zero, size: Self.panelSize))
@@ -42,8 +47,10 @@ final class IslandController {
         reposition()
         installMouseMonitors()
 
-        state.modules = makeModules()
-        state.modules.forEach { $0.start() }
+        applyModuleSettings()
+        settings.onModulesChange = { [weak self] in
+            self?.applyModuleSettings()
+        }
 
         // Displays plugged/unplugged, resolution or arrangement changed.
         screenObserver = NotificationCenter.default.addObserver(
@@ -57,12 +64,21 @@ final class IslandController {
         }
     }
 
-    /// Modules shown in the island, in display order.
-    private func makeModules() -> [any IslandModule] {
-        [
-            NowPlayingModule(activities: state.activities),
-            BatteryModule(activities: state.activities),
-        ]
+    /// Starts newly enabled modules and stops disabled ones, keeping
+    /// `ModuleKind` order. A disabled module is never started.
+    private func applyModuleSettings() {
+        let enabled = settings.enabledModules
+        for module in state.modules where !enabled.contains(where: { $0.id == module.id }) {
+            module.stop()
+        }
+        state.modules = enabled.map { kind in
+            if let running = state.modules.first(where: { $0.id == kind.id }) {
+                return running
+            }
+            let module = kind.makeModule(activities: state.activities)
+            module.start()
+            return module
+        }
     }
 
     /// Moves the panel onto the current target screen and resizes the

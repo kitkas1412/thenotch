@@ -1,0 +1,53 @@
+//
+//  AppSettingsTests.swift
+//  thenotchTests
+//
+
+import Foundation
+import Testing
+@testable import thenotch
+
+@MainActor
+struct AppSettingsTests {
+    let defaults: UserDefaults
+
+    init() {
+        let suite = "thenotchTests.AppSettings.\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    @Test func allModulesAreEnabledByDefault() {
+        #expect(AppSettings(defaults: defaults).enabledModules == ModuleKind.allCases)
+    }
+
+    @Test func disablingAModulePersists() {
+        let settings = AppSettings(defaults: defaults)
+        settings.setEnabled(.nowPlaying, false)
+        #expect(settings.enabledModules == [.battery])
+        #expect(AppSettings(defaults: defaults).enabledModules == [.battery])
+    }
+
+    @Test func reEnablingKeepsCanonicalOrder() {
+        let settings = AppSettings(defaults: defaults)
+        settings.setEnabled(.nowPlaying, false)
+        settings.setEnabled(.nowPlaying, true)
+        #expect(settings.enabledModules == [.nowPlaying, .battery])
+    }
+
+    @Test func changeCallbackFiresOnlyOnActualChange() {
+        let settings = AppSettings(defaults: defaults)
+        var calls = 0
+        settings.onModulesChange = { calls += 1 }
+        settings.setEnabled(.battery, true)  // already on
+        settings.setEnabled(.battery, false)
+        #expect(calls == 1)
+    }
+
+    @Test func moduleKindsMatchModuleIDs() {
+        let activities = ActivityCenter()
+        for kind in ModuleKind.allCases {
+            #expect(kind.makeModule(activities: activities).id == kind.id)
+        }
+    }
+}

@@ -9,7 +9,7 @@ import SwiftUI
 /// the notch while music plays, full controls when the island opens.
 @MainActor
 final class NowPlayingModule: IslandModule {
-    let id = "nowPlaying"
+    let id = ModuleKind.nowPlaying.id
     /// Lowest priority: anything time-sensitive (timers, peeks) wins.
     static let priority = 10
 

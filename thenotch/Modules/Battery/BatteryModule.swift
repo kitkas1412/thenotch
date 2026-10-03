@@ -9,7 +9,7 @@ import SwiftUI
 /// unplugged, or the battery runs low.
 @MainActor
 final class BatteryModule: IslandModule {
-    let id = "battery"
+    let id = ModuleKind.battery.id
     /// Above Now Playing: a peek is short and time-sensitive.
     static let priority = 50
     /// How long a peek stays in the compact island.
