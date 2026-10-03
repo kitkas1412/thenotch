@@ -22,7 +22,7 @@ Or build from the command line:
 xcodebuild -project thenotch.xcodeproj -scheme thenotch -configuration Debug build
 ```
 
-The app runs as an agent (`LSUIElement`): it has no Dock icon and no main window. To quit it during development, run `killall thenotch`.
+The app runs as an agent (`LSUIElement`): it has no Dock icon and no main window. To quit it, click the capsule icon in the menu bar and choose **Quit thenotch** (or run `killall thenotch`).
 
 ## Project structure
 
