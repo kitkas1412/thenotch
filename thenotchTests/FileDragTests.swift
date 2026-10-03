@@ -68,6 +68,27 @@ struct FileDragTests {
         #expect(try Data(contentsOf: owned.url) == png)
     }
 
+    @Test func imageFileFromFinderIsReferencedNotCopied() async throws {
+        // SwiftUI offers a Finder image as `public.jpeg`, without a file URL.
+        let temp = FileManager.default.temporaryDirectory.appendingPathComponent("thenotch-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let photo = temp.appendingPathComponent("photo.jpg")
+        try Data([0xFF, 0xD8, 0xFF]).write(to: photo)
+
+        let provider = NSItemProvider()
+        provider.registerFileRepresentation(forTypeIdentifier: UTType.jpeg.identifier, fileOptions: [.openInPlace], visibility: .all) { completion in
+            completion(photo, true, nil)
+            return nil
+        }
+        let saved = temp.appendingPathComponent("Dropped", isDirectory: true)
+        let files = await FileDrop.loadFiles(from: [provider], savingInto: saved)
+
+        #expect(files.map(\.url.standardizedFileURL) == [photo.standardizedFileURL])
+        #expect(files.first?.isOwned == false)
+        #expect(!FileManager.default.fileExists(atPath: saved.path))
+    }
+
     @Test func fileNameGetsAnExtensionAndNoSlashes() {
         let provided = URL(fileURLWithPath: "/tmp/ABC123")
         #expect(FileDrop.fileName(suggested: "a/b", provided: provided, type: .jpeg) == "a-b.jpeg")
