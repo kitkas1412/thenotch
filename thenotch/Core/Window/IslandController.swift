@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import os
 import SwiftUI
 
 /// Owns the island panel and keeps it positioned over the notch.
@@ -29,6 +30,13 @@ final class IslandController {
     /// Drag pasteboard `changeCount` when the left mouse button went down,
     /// while it's held; see `FileDrag`.
     private var dragChangeCountAtMouseDown: Int?
+    /// Ends the drop-target state shortly after the mouse button is released.
+    private var pendingDragEnd: Task<Void, Never>?
+
+    /// How long the island stays a drop target after the mouse button is
+    /// released: our global monitor sees the mouse-up before the drop
+    /// itself reaches the island, and the drop needs its target views.
+    static let dropGracePeriod: Duration = .milliseconds(500)
 
     init(settings: AppSettings) {
         self.settings = settings
@@ -200,6 +208,11 @@ final class IslandController {
         // checked there, so ordinary drags elsewhere cost a rect test.
         guard action == .open || state.isExpanded else { return }
         guard state.isDraggingFiles || isFileDrag(since: changeCountAtMouseDown) else { return }
+        pendingDragEnd?.cancel()
+        pendingDragEnd = nil
+        if !state.isDraggingFiles {
+            Log.drop.notice("File drag reached the notch; opening as a drop target")
+        }
         state.isDraggingFiles = true
         if !state.isExpanded {
             open(pinning: target.id)
@@ -223,11 +236,20 @@ final class IslandController {
 
     /// The drag finished (dropped on the island or elsewhere). The island
     /// stays open if the pointer is still over it, then closes on hover exit.
+    ///
+    /// The drop zones must outlive the mouse-up: removing them right away
+    /// left the drop, which arrives a moment later, with nowhere to land.
     private func dragEnded() {
         dragChangeCountAtMouseDown = nil
-        guard state.isDraggingFiles else { return }
-        state.isDraggingFiles = false
-        mouseMoved()
+        guard state.isDraggingFiles, pendingDragEnd == nil else { return }
+        Log.drop.debug("Mouse released; keeping drop targets for the grace period")
+        pendingDragEnd = Task { [weak self] in
+            try? await Task.sleep(for: Self.dropGracePeriod)
+            guard let self, !Task.isCancelled else { return }
+            self.pendingDragEnd = nil
+            self.state.isDraggingFiles = false
+            self.mouseMoved()
+        }
     }
 
     /// A view started dragging something out of the island. SwiftUI owns

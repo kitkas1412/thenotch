@@ -4,6 +4,7 @@
 //
 
 import AppKit
+import os
 import SwiftUI
 
 /// Keeps files dropped on the notch at hand, across launches, for
@@ -55,7 +56,8 @@ final class ShelfModule: FileDropReceiving {
     }
 
     func receive(_ files: [DroppedFile]) {
-        store.add(files)
+        let added = store.add(files)
+        Log.drop.notice("Shelf added \(added) of \(files.count) file(s)")
         changed()
     }
 

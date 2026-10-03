@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import os
 import UniformTypeIdentifiers
 
 /// A file taken from a drop.
@@ -34,15 +35,19 @@ enum FileDrop {
     /// other content (promised files, images…) is saved into `directory`.
     /// Items that are neither (text, web links) are skipped.
     static func loadFiles(from providers: [NSItemProvider], savingInto directory: URL = directory) async -> [DroppedFile] {
+        Log.drop.notice("Drop received: \(providers.count) item(s), types \(providers.map(\.registeredTypeIdentifiers), privacy: .public)")
         var files: [DroppedFile] = []
         for provider in providers {
             if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
                 if let url = await loadURL(from: provider), url.isFileURL {
                     files.append(DroppedFile(url: url, isOwned: false))
                 }
-            } else if let url = await saveContent(of: provider, into: directory) {
-                files.append(DroppedFile(url: url, isOwned: true))
+            } else if let file = await loadContent(of: provider, savingInto: directory) {
+                files.append(file)
             }
+        }
+        if files.count < providers.count {
+            Log.drop.error("Loaded \(files.count) of \(providers.count) dropped item(s)")
         }
         return files
     }
@@ -55,11 +60,15 @@ enum FileDrop {
         }
     }
 
-    /// Asks the provider for a file of its first accepted content type
-    /// (resolving a file promise if needed) and copies it into its own
-    /// folder under `directory`: the provided file is deleted once the
-    /// callback returns.
-    private static func saveContent(of provider: NSItemProvider, into directory: URL) async -> URL? {
+    /// Asks the provider for a file of its first accepted content type,
+    /// resolving a file promise if needed.
+    ///
+    /// SwiftUI offers a Finder image as `public.jpeg` (not a file URL) when
+    /// `onDrop` also accepts images, so ask for the file *in place*: an
+    /// existing file comes back as is and is only referenced. Anything else
+    /// is a temporary copy, deleted once the callback returns, so it's
+    /// copied into its own folder under `directory`.
+    private static func loadContent(of provider: NSItemProvider, savingInto directory: URL) async -> DroppedFile? {
         let type = provider.registeredTypeIdentifiers
             .compactMap { UTType($0) }
             .first { type in contentTypes.contains { type.conforms(to: $0) } }
@@ -67,9 +76,13 @@ enum FileDrop {
         let suggestedName = provider.suggestedName
 
         return await withCheckedContinuation { continuation in
-            _ = provider.loadFileRepresentation(forTypeIdentifier: type.identifier) { file, _ in
+            _ = provider.loadInPlaceFileRepresentation(forTypeIdentifier: type.identifier) { file, isInPlace, _ in
                 guard let file else {
                     continuation.resume(returning: nil)
+                    return
+                }
+                if isInPlace {
+                    continuation.resume(returning: DroppedFile(url: file, isOwned: false))
                     return
                 }
                 let name = fileName(suggested: suggestedName, provided: file, type: type)
@@ -78,7 +91,7 @@ enum FileDrop {
                 do {
                     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                     try FileManager.default.copyItem(at: file, to: destination)
-                    continuation.resume(returning: destination)
+                    continuation.resume(returning: DroppedFile(url: destination, isOwned: true))
                 } catch {
                     try? FileManager.default.removeItem(at: folder)
                     continuation.resume(returning: nil)
