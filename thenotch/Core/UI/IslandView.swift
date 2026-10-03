@@ -33,6 +33,9 @@ struct IslandView: View {
                     // them, and margins are measured from what's visible.
                     .padding(.top, state.notchSize.height + IslandStyle.Spacing.content)
                     .padding(.horizontal, IslandStyle.Radius.islandFlare)
+                    // Always laid out at the open size, so it doesn't reflow
+                    // while the island grows or shrinks around it.
+                    .frame(width: state.expandedSize.width, height: state.expandedSize.height, alignment: .top)
                     .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9, anchor: .top)))
             } else if let module = state.currentModule {
                 compactContent(module)
@@ -40,6 +43,10 @@ struct IslandView: View {
             }
         }
         .frame(width: size.width, height: size.height)
+        // Content lives inside the island: the island's own (animating)
+        // shape masks it, so it is revealed as the island opens and
+        // covered as it closes, never left fading outside it.
+        .clipShape(NotchShape(topRadius: radii.top, bottomRadius: radii.bottom))
         // The island is black in every appearance, like the Dynamic Island;
         // semantic styles then resolve to light-on-dark (and follow
         // Increase Contrast).
