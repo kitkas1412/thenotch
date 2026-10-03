@@ -29,7 +29,7 @@ final class IslandController {
     func start() {
         let panel = IslandPanel(contentRect: CGRect(origin: .zero, size: Self.panelSize))
 
-        let hostingView = NSHostingView(rootView: IslandView(state: state))
+        let hostingView = IslandHostingView(rootView: IslandView(state: state))
         hostingView.sizingOptions = []  // keep the panel at its fixed size
         panel.contentView = hostingView
 
@@ -59,7 +59,7 @@ final class IslandController {
 
     /// Modules shown in the island, in display order.
     private func makeModules() -> [any IslandModule] {
-        []
+        [NowPlayingModule(activities: state.activities)]
     }
 
     /// Moves the panel onto the current target screen and resizes the
@@ -156,6 +156,7 @@ final class IslandController {
         withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) {
             state.mode = .expanded
         }
+        state.expandedModule?.islandDidExpand()
     }
 
     private func close(animated: Bool) {
@@ -170,4 +171,10 @@ final class IslandController {
         }
         panel?.ignoresMouseEvents = true
     }
+}
+
+/// The panel never becomes key, so without this the first click on a
+/// control in the island would be swallowed.
+private final class IslandHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }

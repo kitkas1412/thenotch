@@ -49,7 +49,7 @@ struct IslandView: View {
 
     @ViewBuilder
     private var expandedContent: some View {
-        if let module = state.currentModule ?? state.modules.first {
+        if let module = state.expandedModule {
             module.expandedView()
         } else {
             Text("Nothing to show")

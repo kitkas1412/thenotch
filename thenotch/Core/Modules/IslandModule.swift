@@ -25,4 +25,12 @@ protocol IslandModule: AnyObject {
     func compactTrailing() -> AnyView
     /// Content of the expanded island, below the notch.
     func expandedView() -> AnyView
+
+    /// The island just opened showing this module (e.g. to refresh data
+    /// that isn't pushed by notifications).
+    func islandDidExpand()
+}
+
+extension IslandModule {
+    func islandDidExpand() {}
 }
