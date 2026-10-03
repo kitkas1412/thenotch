@@ -37,10 +37,16 @@ final class IslandState {
         return modules.first { $0.id == moduleID }
     }
 
-    /// Module shown when the island is expanded: the current activity's,
-    /// otherwise the first one.
+    /// Module the expanded island stays on while open; set by the controller.
+    var pinnedModuleID: String?
+
+    /// Module shown when the island is expanded: the pinned one, else the
+    /// current activity's, else the first one.
     var expandedModule: (any IslandModule)? {
-        currentModule ?? modules.first
+        if let pinnedModuleID, let pinned = modules.first(where: { $0.id == pinnedModuleID }) {
+            return pinned
+        }
+        return currentModule ?? modules.first
     }
 
     /// Notch size, widened by the wings while an activity is shown.

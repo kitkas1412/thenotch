@@ -36,12 +36,14 @@ final class IslandController {
 
         let hostingView = IslandHostingView(rootView: IslandView(state: state))
         hostingView.sizingOptions = []  // keep the panel at its fixed size
+        hostingView.onMouseMoved = { [weak self] in
+            self?.mouseMoved()
+        }
         panel.contentView = hostingView
 
         // The panel covers part of the menu bar; let clicks pass through
         // until the island opens.
         panel.ignoresMouseEvents = true
-        panel.acceptsMouseMovedEvents = true
         self.panel = panel
 
         reposition()
@@ -116,16 +118,8 @@ final class IslandController {
         }) {
             mouseMonitors.append(global)
         }
-
-        // Local: pointer over our own panel once it accepts mouse events.
-        if let local = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved, handler: { [weak self] event in
-            MainActor.assumeIsolated {
-                self?.mouseMoved()
-            }
-            return event
-        }) {
-            mouseMonitors.append(local)
-        }
+        // Over our own panel (once it accepts the mouse) the global monitor
+        // sees nothing; IslandHostingView's tracking area reports those moves.
     }
 
     private func mouseMoved() {
@@ -172,6 +166,9 @@ final class IslandController {
     private func open() {
         guard !state.isExpanded else { return }
         panel?.ignoresMouseEvents = false
+        // Keep showing this module while open, even if another activity
+        // (e.g. a battery peek) takes over the compact island meanwhile.
+        state.pinnedModuleID = state.expandedModule?.id
         withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) {
             state.mode = .expanded
         }
@@ -188,12 +185,38 @@ final class IslandController {
         } else {
             state.mode = .compact
         }
+        state.pinnedModuleID = nil
         panel?.ignoresMouseEvents = true
     }
 }
 
-/// The panel never becomes key, so without this the first click on a
-/// control in the island would be swallowed.
+/// Hosting view for the island panel, which never becomes key:
+/// - accepts the first click, which would otherwise be swallowed;
+/// - reports mouse moves via an always-active tracking area, because
+///   AppKit only sends `mouseMoved` to the key window.
 private final class IslandHostingView<Content: View>: NSHostingView<Content> {
+    var onMouseMoved: (() -> Void)?
+
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if !trackingAreas.contains(where: { $0.owner === self && $0.options.contains(.activeAlways) }) {
+            addTrackingArea(NSTrackingArea(
+                rect: .zero,
+                options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                owner: self
+            ))
+        }
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        onMouseMoved?()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        onMouseMoved?()
+    }
 }
