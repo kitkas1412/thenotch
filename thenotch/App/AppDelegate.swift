@@ -9,7 +9,9 @@ import AppKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let islandController = IslandController()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // TODO: Create IslandController and show IslandPanel here.
+        islandController.start()
     }
 }

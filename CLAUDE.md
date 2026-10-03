@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`thenotch` is a macOS menu-bar-style app that renders a "Dynamic Island" around the MacBook notch (similar to DynamicLake). The project is at an early scaffolding stage: most files under `thenotch/Core/` are empty placeholders defining the intended architecture.
+`thenotch` is a macOS menu-bar-style app that renders a "Dynamic Island" around the MacBook notch (similar to DynamicLake). The project is early in development: a static black island is drawn over the notch; hover, states and modules are not implemented yet.
 
 ## Commands
 

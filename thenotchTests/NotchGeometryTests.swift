@@ -58,4 +58,27 @@ struct NotchGeometryTests {
         )
         #expect(rect == CGRect(x: -850, y: 1150, width: 188, height: 32))
     }
+
+    @Test func panelIsCenteredOnNotchAndFlushWithTop() {
+        let notch = CGRect(x: 662, y: 950, width: 188, height: 32)
+        let panel = NotchGeometry.panelFrame(
+            centeredOn: notch,
+            screenFrame: frame,
+            size: CGSize(width: 640, height: 220)
+        )
+        #expect(panel == CGRect(x: 436, y: 762, width: 640, height: 220))
+        #expect(panel.midX == notch.midX)
+        #expect(panel.maxY == frame.maxY)
+    }
+
+    @Test func panelOnSecondaryScreenUsesThatScreensTop() {
+        let screen = CGRect(x: -1920, y: 300, width: 1920, height: 1080)
+        let notch = CGRect(x: -1055, y: 1350, width: 190, height: 30)
+        let panel = NotchGeometry.panelFrame(
+            centeredOn: notch,
+            screenFrame: screen,
+            size: CGSize(width: 640, height: 220)
+        )
+        #expect(panel == CGRect(x: -1280, y: 1160, width: 640, height: 220))
+    }
 }
