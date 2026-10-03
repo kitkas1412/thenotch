@@ -19,9 +19,19 @@ final class NowPlayingService {
     private(set) var info: NowPlayingInfo?
     /// Automation was denied for the app owning `info`.
     private(set) var permissionDenied = false
+    /// Album artwork of `info`, downscaled; `nil` until loaded or if the
+    /// app doesn't provide a URL (Music).
+    private(set) var artwork: NSImage?
+
+    /// Called whenever `info` changes (for publishing live activities).
+    @ObservationIgnored var onInfoChange: ((NowPlayingInfo?) -> Void)?
 
     @ObservationIgnored private var tracks: [NowPlayingInfo.Source: NowPlayingInfo] = [:]
     @ObservationIgnored private var deniedSources: Set<NowPlayingInfo.Source> = []
+    /// Apps a script has succeeded on, i.e. Automation is granted.
+    @ObservationIgnored private var grantedSources: Set<NowPlayingInfo.Source> = []
+    @ObservationIgnored private var artworkCache: [URL: NSImage] = [:]
+    @ObservationIgnored private var artworkTask: Task<Void, Never>?
     @ObservationIgnored private var observers: [(NotificationCenter, NSObjectProtocol)] = []
 
     func start() {
@@ -121,6 +131,7 @@ final class NowPlayingService {
     private func handle<T>(_ result: Result<T, MediaAppScripting.ScriptError>, for source: NowPlayingInfo.Source) {
         switch result {
         case .success:
+            grantedSources.insert(source)
             setDenied(source, false)
         case .failure(.permissionDenied):
             setDenied(source, true)
@@ -132,8 +143,16 @@ final class NowPlayingService {
     }
 
     private func update(_ source: NowPlayingInfo.Source, _ track: NowPlayingInfo?) {
-        tracks[source] = track?.filledIn(from: tracks[source])
+        let previous = tracks[source]
+        tracks[source] = track?.filledIn(from: previous)
         recompute()
+
+        // Notifications carry no artwork (and Music no position): read
+        // them via AppleScript when a new track starts, if allowed.
+        if let track, grantedSources.contains(source),
+           previous?.title != track.title || previous?.artist != track.artist {
+            Task { await refresh(source) }
+        }
     }
 
     private func setDenied(_ source: NowPlayingInfo.Source, _ denied: Bool) {
@@ -149,11 +168,61 @@ final class NowPlayingService {
         let preferred = NowPlayingInfo.preferred(Array(tracks.values))
         if preferred != info {
             info = preferred
+            loadArtwork(for: preferred?.artworkURL)
+            onInfoChange?(preferred)
         }
         let denied = preferred.map { deniedSources.contains($0.source) } ?? false
         if denied != permissionDenied {
             permissionDenied = denied
         }
+    }
+
+    /// Side length artwork is downscaled to (2× the largest display size).
+    private static let artworkPixelSize: CGFloat = 160
+
+    private func loadArtwork(for url: URL?) {
+        guard let url else {
+            artworkTask?.cancel()
+            artwork = nil
+            return
+        }
+        if let cached = artworkCache[url] {
+            if artwork !== cached { artwork = cached }
+            return
+        }
+        artworkTask?.cancel()
+        artworkTask = Task {
+            guard let (data, _) = try? await URLSession.shared.data(from: url),
+                  !Task.isCancelled,
+                  let image = NSImage(data: data)
+            else { return }
+            let thumbnail = Self.downscaled(image, to: Self.artworkPixelSize)
+            if artworkCache.count >= 50 {
+                artworkCache.removeAll()
+            }
+            artworkCache[url] = thumbnail
+            if info?.artworkURL == url {
+                artwork = thumbnail
+            }
+        }
+    }
+
+    /// Redraws `image` into a `side`×`side` pixel bitmap (shown at @2x), so
+    /// the full-size download isn't kept in memory.
+    private static func downscaled(_ image: NSImage, to side: CGFloat) -> NSImage {
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: Int(side), pixelsHigh: Int(side),
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+        ) else { return image }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        image.draw(in: NSRect(x: 0, y: 0, width: side, height: side))
+        NSGraphicsContext.restoreGraphicsState()
+
+        let thumbnail = NSImage(size: NSSize(width: side / 2, height: side / 2))
+        thumbnail.addRepresentation(rep)
+        return thumbnail
     }
 
     private func observe(_ name: String, handler: @escaping ([AnyHashable: Any]) -> Void) {

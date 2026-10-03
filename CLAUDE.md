@@ -38,6 +38,7 @@ Run the app from Xcode (⌘R). Because of `LSUIElement`, it has no Dock icon or 
   - `State/HoverPolicy` — pure open/close decision from the pointer position, with hysteresis (exit region larger than entry). The controller feeds it from global + local `mouseMoved` monitors and debounces opening by 150 ms; the panel only accepts mouse events while expanded.
   - `Modules/IslandModule` + `State/ActivityCenter` — features are `IslandModule`s (registered in `IslandController.makeModules()`). A module publishes a `LiveActivity` (priority, optional expiry) to `state.activities`; `ActivityCenter` picks the one shown in compact mode, and `IslandView` renders that module's `compactLeading`/`compactTrailing` wings beside the notch and its `expandedView` when open.
   - `UI/IslandView` + `UI/NotchShape` — SwiftUI rendering of the island and its notch-matching shape.
+- **Feature modules** live in `thenotch/Modules/<Name>/` (service + module + views). `NowPlaying` combines `NowPlayingService` (state from Spotify/Music notifications, AppleScript controls, artwork cache) with compact wings (artwork, level meter) and an expanded player.
 - The Xcode project uses **file-system synchronized groups**: any file added under `thenotch/` is automatically part of the target; no `project.pbxproj` edits are needed when adding/moving files.
 
 ## Build settings that matter

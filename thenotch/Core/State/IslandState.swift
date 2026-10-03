@@ -37,6 +37,12 @@ final class IslandState {
         return modules.first { $0.id == moduleID }
     }
 
+    /// Module shown when the island is expanded: the current activity's,
+    /// otherwise the first one.
+    var expandedModule: (any IslandModule)? {
+        currentModule ?? modules.first
+    }
+
     /// Notch size, widened by the wings while an activity is shown.
     var compactSize: CGSize {
         guard currentModule != nil else { return notchSize }
