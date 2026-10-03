@@ -45,6 +45,7 @@ Run the app from Xcode (⌘R). Because of `LSUIElement`, it has no Dock icon or 
 - **App Sandbox is OFF** and Hardened Runtime is ON — intentional, because notch apps need system-level access (media info, screen/window APIs). Distribution is outside the Mac App Store (notarization).
 - **Deployment target: macOS 14.0** (target-level setting overrides the project-level 26.6). Guard newer APIs with `#available`.
 - **Swift 5 language mode, `SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated`, approachable concurrency OFF.** Types are *not* implicitly `@MainActor`, so mark AppKit/SwiftUI-facing types (`AppDelegate`, `IslandController`, `IslandPanel`, `IslandState`) with `@MainActor` explicitly.
+- **Automation (Apple Events)** is enabled via `AUTOMATION_APPLE_EVENTS = YES` (hardened-runtime entitlement) and `INFOPLIST_KEY_NSAppleEventsUsageDescription`. Now Playing reads state from Spotify/Music distributed notifications (no permission) and uses AppleScript only for controls/position; never script an app that isn't running (`tell application` would launch it). Permission sticks only with a stable signing identity (your Apple Development team), not ad-hoc signing.
 - Info.plist is generated (`GENERATE_INFOPLIST_FILE = YES`); add keys via `INFOPLIST_KEY_*` build settings rather than a plist file.
 
 ## Git workflow
