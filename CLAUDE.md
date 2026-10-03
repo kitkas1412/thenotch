@@ -25,11 +25,11 @@ CI (`.github/workflows/ci.yml`) runs the test command on every push to `main` an
 
 Keep testable logic as pure functions taking plain values (see `NotchGeometry.notchRect(frame:visibleFrame:topInset:leftArea:rightArea:)`), with a thin `NSScreen` wrapper — `NSScreen` can't be constructed in tests.
 
-Run the app from Xcode (⌘R). Because of `LSUIElement`, it has no Dock icon or main window — quit it via Activity Monitor / `killall thenotch` until a quit control exists.
+Run the app from Xcode (⌘R). Because of `LSUIElement`, it has no Dock icon or main window — quit it from its menu bar icon (capsule) → Quit, or `killall thenotch`.
 
 ## Architecture
 
-- **Entry point** (`thenotch/App/`): `thenotchApp` declares only a `Settings` scene and hands control to `AppDelegate` via `@NSApplicationDelegateAdaptor`. All on-screen UI is driven from AppKit, not SwiftUI scenes — do not add a `WindowGroup`.
+- **Entry point** (`thenotch/App/`): `thenotchApp` declares only a `MenuBarExtra` (menu bar icon with Quit) and hands control to `AppDelegate` via `@NSApplicationDelegateAdaptor`. All on-screen UI is driven from AppKit, not SwiftUI scenes — do not add a `WindowGroup`.
 - **Intended flow** (`thenotch/Core/`):
   - `Window/IslandController` — created in `AppDelegate.applicationDidFinishLaunching`; owns the panel, positions it over the notch, reacts to screen changes.
   - `Window/IslandPanel` — borderless, non-activating `NSPanel` sitting at/above the menu bar level, hosting SwiftUI via `NSHostingView`.
