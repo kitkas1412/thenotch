@@ -88,6 +88,11 @@ final class ShelfModule: FileDropReceiving {
                 self?.store.remove(item.id)
                 self?.changed()
             },
+            onMovedOut: { [weak self] item in
+                Log.drop.notice("Shelf file was moved out; removing it from the shelf")
+                self?.store.remove(item.id)
+                self?.changed()
+            },
             onClear: { [weak self] in
                 self?.store.removeAll()
                 self?.changed()

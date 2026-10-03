@@ -25,9 +25,13 @@ struct ShelfExpandedView: View {
     var onOpen: (ShelfItem) -> Void
     var onReveal: (ShelfItem) -> Void
     var onRemove: (ShelfItem) -> Void
+    /// The file was moved out of its place by dragging it off the shelf.
+    var onMovedOut: (ShelfItem) -> Void
     var onClear: () -> Void
 
     @Environment(\.isDraggingFiles) private var isDraggingFiles
+    /// Clicking a file selects it, like in Finder; double-clicking opens it.
+    @State private var selection: ShelfItem.ID?
 
     var body: some View {
         if isDraggingFiles {
@@ -61,10 +65,13 @@ struct ShelfExpandedView: View {
                         ForEach(store.items) { item in
                             ShelfTile(
                                 item: item,
+                                isSelected: selection == item.id,
+                                onSelect: { selection = $0.id },
                                 onOpen: onOpen,
                                 onReveal: onReveal,
                                 onAirDrop: { onAirDrop([$0.url]) },
-                                onRemove: onRemove
+                                onRemove: onRemove,
+                                onMovedOut: onMovedOut
                             )
                         }
                     }
@@ -129,12 +136,16 @@ private struct DropZone: View {
 
 private struct ShelfTile: View {
     let item: ShelfItem
+    var isSelected: Bool
+    var onSelect: (ShelfItem) -> Void
     var onOpen: (ShelfItem) -> Void
     var onReveal: (ShelfItem) -> Void
     var onAirDrop: (ShelfItem) -> Void
     var onRemove: (ShelfItem) -> Void
+    var onMovedOut: (ShelfItem) -> Void
 
     @State private var isHovering = false
+    @State private var isDragging = false
     @Environment(\.beginDragOut) private var beginDragOut
 
     var body: some View {
@@ -152,7 +163,7 @@ private struct ShelfTile: View {
         .padding(4)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(.white.opacity(isHovering ? 0.12 : 0))
+                .fill(isSelected ? Color.accentColor.opacity(0.5) : .white.opacity(isHovering ? 0.12 : 0))
         )
         .overlay(alignment: .topTrailing) {
             if isHovering {
@@ -169,15 +180,25 @@ private struct ShelfTile: View {
         }
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
-        .onTapGesture { onOpen(item) }
-        // Drag the file itself out (to Finder, Mail, a chat…). Finder
-        // copies it; the original stays where it is.
-        .onDrag {
-            beginDragOut()
-            let provider = NSItemProvider(object: item.url as NSURL)
-            provider.suggestedName = item.name
-            return provider
-        }
+        .onTapGesture(count: 2) { onOpen(item) }
+        .onTapGesture { onSelect(item) }
+        // Drag the file out (to Finder, Mail, a chat…). A Finder drop on
+        // the same volume moves it, and it leaves the shelf (Cut + Paste).
+        .gesture(
+            DragGesture(minimumDistance: 4)
+                .onChanged { _ in
+                    guard !isDragging else { return }
+                    isDragging = ShelfDrag.begin(item) { operation in
+                        isDragging = false
+                        if ShelfDrag.fileLeft(after: operation) {
+                            onMovedOut(item)
+                        }
+                    }
+                    if isDragging {
+                        beginDragOut()
+                    }
+                }
+        )
         .contextMenu {
             Button("Open") { onOpen(item) }
             Button("Show in Finder") { onReveal(item) }
