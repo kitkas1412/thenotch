@@ -59,7 +59,10 @@ final class IslandController {
 
     /// Modules shown in the island, in display order.
     private func makeModules() -> [any IslandModule] {
-        [NowPlayingModule(activities: state.activities)]
+        [
+            NowPlayingModule(activities: state.activities),
+            BatteryModule(activities: state.activities),
+        ]
     }
 
     /// Moves the panel onto the current target screen and resizes the
