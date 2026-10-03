@@ -165,19 +165,6 @@ private struct ShelfTile: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(isSelected ? Color.accentColor.opacity(0.5) : .white.opacity(isHovering ? 0.12 : 0))
         )
-        .overlay(alignment: .topTrailing) {
-            if isHovering {
-                Button {
-                    onRemove(item)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, .gray)
-                }
-                .buttonStyle(.plain)
-                .help("Remove from shelf")
-            }
-        }
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .onTapGesture(count: 2) { onOpen(item) }
