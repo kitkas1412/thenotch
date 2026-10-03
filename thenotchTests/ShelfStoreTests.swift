@@ -3,6 +3,7 @@
 //  thenotchTests
 //
 
+import AppKit
 import Foundation
 import Testing
 @testable import thenotch
@@ -144,5 +145,20 @@ struct ShelfPersistenceTests {
         #expect(ShelfModule.isFolder(URL(fileURLWithPath: "/x/Dropped/UUID"), directlyIn: root))
         #expect(!ShelfModule.isFolder(URL(fileURLWithPath: "/x/Dropped"), directlyIn: root))
         #expect(!ShelfModule.isFolder(URL(fileURLWithPath: "/Users/me/Desktop"), directlyIn: root))
+    }
+}
+
+@MainActor
+struct ShelfDragTests {
+    @Test func movedOrTrashedFilesLeaveTheShelf() {
+        #expect(ShelfDrag.fileLeft(after: .move))
+        #expect(ShelfDrag.fileLeft(after: .delete))
+        #expect(ShelfDrag.fileLeft(after: [.move, .generic]))
+    }
+
+    @Test func copiedOrCancelledFilesStay() {
+        #expect(!ShelfDrag.fileLeft(after: .copy))
+        #expect(!ShelfDrag.fileLeft(after: .generic))
+        #expect(!ShelfDrag.fileLeft(after: []))
     }
 }
