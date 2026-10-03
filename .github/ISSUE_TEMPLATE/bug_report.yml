@@ -1,0 +1,56 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: thenotch version
+      description: Menu bar icon › Settings… › Version
+      placeholder: 0.1.0 (1)
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: macOS 26.0
+    validations:
+      required: true
+  - type: dropdown
+    id: display
+    attributes:
+      label: Display setup
+      options:
+        - MacBook with a notch
+        - MacBook without a notch
+        - External display only (lid closed)
+        - MacBook + external display
+    validations:
+      required: true
+  - type: dropdown
+    id: module
+    attributes:
+      label: Area
+      options:
+        - Island / hover
+        - Now Playing (Spotify)
+        - Now Playing (Apple Music)
+        - Battery
+        - Settings / launch at login
+        - Other
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Optional. In Terminal: `log show --last 10m --predicate 'process == "thenotch"'`
+        For a crash: Console.app › Crash Reports › thenotch.
+      render: text

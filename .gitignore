@@ -12,3 +12,4 @@ build/
 .swiftpm/
 .build/
 *.xcresult
+dist/

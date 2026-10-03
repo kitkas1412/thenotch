@@ -1,0 +1,62 @@
+name: Release
+
+# Push a tag like v0.1.0 (matching MARKETING_VERSION) to build the app and
+# publish a GitHub Release with the DMG, zip and checksums attached.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 27
+        run: |
+          xcode=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$xcode" ]; then
+            echo "::error::No Xcode 27 found on this runner"
+            exit 1
+          fi
+          sudo xcode-select -s "$xcode/Contents/Developer"
+          xcodebuild -version
+
+      - name: Test
+        run: |
+          xcodebuild test -project thenotch.xcodeproj -scheme thenotch \
+            -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
+
+      - name: Build and package
+        run: scripts/build-release.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Release notes from CHANGELOG
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^(## )?\[/ { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::No section for $version in CHANGELOG.md"
+            exit 1
+          fi
+          cat >> notes.md <<'EOF'
+
+          ---
+          **Install:** download the `.dmg`, drag thenotch to Applications, then follow [Installing](https://github.com/${{ github.repository }}#installing) — the app isn't notarized, so macOS asks you to allow it once.
+          EOF
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "thenotch ${GITHUB_REF_NAME#v}" \
+            --notes-file notes.md \
+            --verify-tag
