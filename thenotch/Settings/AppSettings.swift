@@ -23,15 +23,6 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         }
     }
 
-    /// SF Symbol for the module switcher in the expanded island.
-    var symbol: String {
-        switch self {
-        case .nowPlaying: "music.note"
-        case .battery: "battery.75percent"
-        case .shelf: "tray.full"
-        }
-    }
-
     var summary: String {
         switch self {
         case .nowPlaying: "Track, artwork and controls for Spotify and Music."

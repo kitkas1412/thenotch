@@ -114,3 +114,26 @@ struct NowPlayingInfoTests {
         #expect(NowPlayingInfo.preferred([]) == nil)
     }
 }
+
+struct NowPlayingFavoriteTests {
+    let now = Date(timeIntervalSince1970: 1_000)
+
+    func track(_ title: String, favorite: Bool?) -> NowPlayingInfo {
+        NowPlayingInfo(source: .music, title: title, artist: "A", album: "B", isPlaying: true,
+                       duration: 200, elapsed: 10, elapsedAt: now, artworkURL: nil, isFavorite: favorite)
+    }
+
+    @Test func onlyMusicSupportsFavorites() {
+        #expect(NowPlayingInfo.Source.music.supportsFavorites)
+        #expect(!NowPlayingInfo.Source.spotify.supportsFavorites)
+    }
+
+    @Test func notificationKeepsTheKnownFavoriteOfTheSameTrack() {
+        // Music's notifications don't say whether a track is a favorite.
+        #expect(track("Song", favorite: nil).filledIn(from: track("Song", favorite: true)).isFavorite == true)
+    }
+
+    @Test func newTrackDoesNotInheritTheFavorite() {
+        #expect(track("Next", favorite: nil).filledIn(from: track("Song", favorite: true)).isFavorite == nil)
+    }
+}

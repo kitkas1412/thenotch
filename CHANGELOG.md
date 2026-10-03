@@ -9,11 +9,17 @@ All notable changes to thenotch are documented here. The format follows
 ### Added
 
 - **Shelf**: drag files from Finder onto the notch to keep them at hand. The island opens as a drop target while you drag; click a file to select it, double-click to open it, right-click to show it in Finder or remove it.
-- Buttons beside the notch in the expanded island to switch between modules.
 - Shelf: drag a file out of the shelf into a Finder folder to move it there, like Cut + Paste: it leaves its old place and the shelf. Across disks Finder copies instead (hold ⌘ to move, ⌥ to copy); dropping into an app such as Mail attaches a copy and keeps it on the shelf.
 - The shelf is kept across launches and follows files you rename or move. Files leave it after 1 hour, 1 day (default), 1 week or never (Settings › Shelf).
 - Images, PDFs, videos and audio dragged from apps (Safari, Photos, Mail…) can be dropped too; thenotch saves a copy and deletes it when it leaves the shelf.
-- AirDrop from the notch: while dragging files in, drop them on the **AirDrop** zone to send them right away, or use **AirDrop All** / right-click › AirDrop… on the shelf.
+- AirDrop from the notch: while dragging files in, drop them on the **AirDrop** zone to send them right away, or use **AirDrop All…** / right-click › AirDrop… on the shelf. Selecting a file shows Show in Finder, AirDrop… and Remove above the shelf.
+- Now Playing: a new player with large artwork, a progress bar, a level meter tinted with the artwork's color, and an audio output picker (built-in speakers, headphones, AirPlay…).
+- Now Playing: a star to add the track to Favorites in Apple Music (Spotify doesn't allow other apps to do this).
+
+### Changed
+
+- Hovering the notch opens the island only when there's something to show: a playing or paused track, files on the shelf, or a battery alert. Otherwise the notch is left alone.
+- Accessibility: every control has a VoiceOver label, controls are at least 28 × 28 pt, the island follows Reduce Motion (a short fade instead of the spring, still level meter) and Increase Contrast, and text is larger and heavier.
 
 ## [0.1.0] - 2026-10-03
 

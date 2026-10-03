@@ -22,6 +22,9 @@ final class NowPlayingService {
     /// Album artwork of `info`, downscaled; `nil` until loaded or if the
     /// app doesn't provide a URL (Music).
     private(set) var artwork: NSImage?
+    /// Accent color from `artwork` (`ArtworkTint`); `nil` for gray artwork
+    /// or none.
+    private(set) var artworkTint: NSColor?
 
     /// Called whenever `info` changes (for publishing live activities).
     @ObservationIgnored var onInfoChange: ((NowPlayingInfo?) -> Void)?
@@ -30,7 +33,7 @@ final class NowPlayingService {
     @ObservationIgnored private var deniedSources: Set<NowPlayingInfo.Source> = []
     /// Apps a script has succeeded on, i.e. Automation is granted.
     @ObservationIgnored private var grantedSources: Set<NowPlayingInfo.Source> = []
-    @ObservationIgnored private var artworkCache: [URL: NSImage] = [:]
+    @ObservationIgnored private var artworkCache: [URL: (image: NSImage, tint: NSColor?)] = [:]
     @ObservationIgnored private var artworkTask: Task<Void, Never>?
     @ObservationIgnored private var observers: [(NotificationCenter, NSObjectProtocol)] = []
 
@@ -86,6 +89,21 @@ final class NowPlayingService {
     func nextTrack() { send(.nextTrack) }
     func previousTrack() { send(.previousTrack) }
 
+    /// Marks the current track as a favorite, or unmarks it (Music only).
+    /// The star updates right away and reverts if Music refuses.
+    func toggleFavorite() {
+        guard let info, info.source.supportsFavorites else { return }
+        let favorite = !(info.isFavorite ?? false)
+        setFavorite(favorite, for: info)
+        Task {
+            let result = await MediaAppScripting.setFavorite(favorite, in: info.source)
+            handle(result, for: info.source)
+            if case .failure = result {
+                setFavorite(!favorite, for: info)
+            }
+        }
+    }
+
     /// Re-reads the current track (e.g. for an up-to-date playback position
     /// when the island opens). Does nothing without permission.
     func refresh() {
@@ -123,9 +141,29 @@ final class NowPlayingService {
     private func refresh(_ source: NowPlayingInfo.Source) async {
         let result = await MediaAppScripting.currentTrack(of: source)
         handle(result, for: source)
-        if case .success(let track) = result {
-            update(source, track)
+        guard case .success(let track?) = result else {
+            if case .success(nil) = result { update(source, nil) }
+            return
         }
+        update(source, track)
+        // Read separately: older Music versions name the property `loved`,
+        // and a failure here mustn't lose the track itself.
+        if source.supportsFavorites,
+           case .success(let favorite) = await MediaAppScripting.isFavorite(in: source) {
+            setFavorite(favorite, for: track)
+        }
+    }
+
+    /// Sets the favorite flag of `track` if it's still the current track of
+    /// its app.
+    private func setFavorite(_ favorite: Bool, for track: NowPlayingInfo) {
+        guard var current = tracks[track.source],
+              current.title == track.title, current.artist == track.artist,
+              current.isFavorite != favorite
+        else { return }
+        current.isFavorite = favorite
+        tracks[track.source] = current
+        recompute()
     }
 
     private func handle<T>(_ result: Result<T, MediaAppScripting.ScriptError>, for source: NowPlayingInfo.Source) {
@@ -184,10 +222,14 @@ final class NowPlayingService {
         guard let url else {
             artworkTask?.cancel()
             artwork = nil
+            artworkTint = nil
             return
         }
         if let cached = artworkCache[url] {
-            if artwork !== cached { artwork = cached }
+            if artwork !== cached.image {
+                artwork = cached.image
+                artworkTint = cached.tint
+            }
             return
         }
         artworkTask?.cancel()
@@ -197,12 +239,14 @@ final class NowPlayingService {
                   let image = NSImage(data: data)
             else { return }
             let thumbnail = Self.downscaled(image, to: Self.artworkPixelSize)
+            let tint = (thumbnail.representations.first as? NSBitmapImageRep).flatMap(ArtworkTint.tint(of:))
             if artworkCache.count >= 50 {
                 artworkCache.removeAll()
             }
-            artworkCache[url] = thumbnail
+            artworkCache[url] = (thumbnail, tint)
             if info?.artworkURL == url {
                 artwork = thumbnail
+                artworkTint = tint
             }
         }
     }

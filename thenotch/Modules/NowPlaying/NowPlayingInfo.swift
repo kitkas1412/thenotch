@@ -17,6 +17,12 @@ struct NowPlayingInfo: Equatable {
             }
         }
 
+        /// Whether the app lets other apps mark a track as a favorite.
+        /// Spotify's scripting only reads its "starred" flag.
+        var supportsFavorites: Bool {
+            self == .music
+        }
+
         /// Name used in AppleScript `tell application "…"`.
         var scriptName: String {
             switch self {
@@ -37,6 +43,8 @@ struct NowPlayingInfo: Equatable {
     var elapsed: TimeInterval?
     var elapsedAt: Date
     var artworkURL: URL?
+    /// Favorited in the app; `nil` until read, or if unsupported.
+    var isFavorite: Bool?
 
     /// Playback position at `date`, advancing while playing and clamped to
     /// the track length.
@@ -64,6 +72,9 @@ struct NowPlayingInfo: Equatable {
         }
         if merged.artworkURL == nil {
             merged.artworkURL = previous.artworkURL
+        }
+        if merged.isFavorite == nil {
+            merged.isFavorite = previous.isFavorite
         }
         return merged
     }

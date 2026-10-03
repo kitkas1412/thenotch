@@ -25,6 +25,10 @@ final class IslandController {
     /// Notch rect (screen coordinates) on the current target screen.
     private var notch: CGRect = .zero
     private var screenObserver: NSObjectProtocol?
+    private var menuObservers: [NSObjectProtocol] = []
+    /// A menu of ours is open (output picker, a tile's context menu…). The
+    /// pointer moving onto it must not close the island under it.
+    private var isTrackingMenu = false
     private var mouseMonitors: [Any] = []
     private var pendingOpen: Task<Void, Never>?
     /// Drag pasteboard `changeCount` when the left mouse button went down,
@@ -67,6 +71,8 @@ final class IslandController {
         state.onDragOutBegan = { [weak self] in
             self?.dragOutBegan()
         }
+
+        observeMenus()
 
         // Displays plugged/unplugged, resolution or arrangement changed.
         screenObserver = NotificationCenter.default.addObserver(
@@ -119,6 +125,25 @@ final class IslandController {
         panel.orderFrontRegardless()
     }
 
+    private func observeMenus() {
+        let center = NotificationCenter.default
+        menuObservers = [
+            center.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.isTrackingMenu = true
+                }
+            },
+            center.addObserver(forName: NSMenu.didEndTrackingNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.isTrackingMenu = false
+                    // Close now if the pointer left while the menu was up.
+                    self.mouseMoved()
+                }
+            },
+        ]
+    }
+
     // MARK: - Hover
 
     private func installMouseMonitors() {
@@ -147,8 +172,9 @@ final class IslandController {
     }
 
     private func mouseMoved() {
-        // Dragging a file out of the island: stay open until it's dropped.
-        if state.isDraggingOut { return }
+        // Dragging a file out of the island, or a menu is open: stay open
+        // until it's done.
+        if state.isDraggingOut || isTrackingMenu { return }
         let action = HoverPolicy.action(
             isExpanded: state.isExpanded,
             pointer: NSEvent.mouseLocation,
@@ -294,11 +320,14 @@ final class IslandController {
     private func open(pinning moduleID: String? = nil) {
         cancelPendingOpen()
         guard !state.isExpanded else { return }
+        // Hovering an island with nothing to show (no music, empty shelf…)
+        // leaves the notch alone; a file drag always pins its module.
+        guard moduleID != nil || state.expandedModule != nil else { return }
         panel?.ignoresMouseEvents = false
         // Keep showing this module while open, even if another activity
         // (e.g. a battery peek) takes over the compact island meanwhile.
         state.pinnedModuleID = moduleID ?? state.expandedModule?.id
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) {
+        withAnimation(IslandStyle.openAnimation) {
             state.mode = .expanded
         }
         state.expandedModule?.islandDidExpand()
@@ -308,7 +337,7 @@ final class IslandController {
         cancelPendingOpen()
         guard state.isExpanded else { return }
         if animated {
-            withAnimation(.spring(response: 0.45, dampingFraction: 1.0)) {
+            withAnimation(IslandStyle.closeAnimation) {
                 state.mode = .compact
             }
         } else {

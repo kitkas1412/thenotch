@@ -22,8 +22,6 @@ final class IslandState {
     var mode: Mode = .compact
     /// Size of the (real or simulated) notch on the target screen.
     var notchSize = CGSize(width: NotchGeometry.fallbackWidth, height: NotchGeometry.minimumFallbackHeight)
-    /// Must fit inside `IslandController.panelSize`.
-    var expandedSize = CGSize(width: 520, height: 160)
 
     let activities = ActivityCenter()
     /// Started modules, in display order.
@@ -50,12 +48,25 @@ final class IslandState {
     var pinnedModuleID: String?
 
     /// Module shown when the island is expanded: the pinned one, else the
-    /// current activity's, else the first one.
+    /// current activity's, else the first with something to show. `nil`
+    /// when nothing has content: the island then doesn't open on hover.
     var expandedModule: (any IslandModule)? {
         if let pinnedModuleID, let pinned = modules.first(where: { $0.id == pinnedModuleID }) {
             return pinned
         }
-        return currentModule ?? modules.first
+        if let currentModule, currentModule.hasExpandedContent {
+            return currentModule
+        }
+        return modules.first { $0.hasExpandedContent }
+    }
+
+    static let expandedWidth: CGFloat = 520
+    static let defaultExpandedHeight: CGFloat = 160
+
+    /// Size of the open island: each module picks its height (HIG Live
+    /// Activities: use only the height the content needs).
+    var expandedSize: CGSize {
+        CGSize(width: Self.expandedWidth, height: expandedModule?.expandedHeight ?? Self.defaultExpandedHeight)
     }
 
     /// Notch size, widened by the wings while an activity is shown.

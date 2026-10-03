@@ -14,6 +14,7 @@ final class NowPlayingModule: IslandModule {
     static let priority = 10
 
     private let service = NowPlayingService()
+    private let outputs = AudioOutputs()
     private let activities: ActivityCenter
 
     init(activities: ActivityCenter) {
@@ -35,6 +36,18 @@ final class NowPlayingModule: IslandModule {
 
     func islandDidExpand() {
         service.refresh()
+        outputs.refresh()
+    }
+
+    /// A track is playing or paused.
+    var hasExpandedContent: Bool {
+        service.info != nil
+    }
+
+    /// Tall enough for the player (artwork row, progress, controls); the
+    /// short default when nothing plays.
+    var expandedHeight: CGFloat {
+        service.info == nil ? IslandState.defaultExpandedHeight : 206
     }
 
     func compactLeading() -> AnyView {
@@ -46,7 +59,7 @@ final class NowPlayingModule: IslandModule {
     }
 
     func expandedView() -> AnyView {
-        AnyView(NowPlayingExpandedView(service: service))
+        AnyView(NowPlayingExpandedView(service: service, outputs: outputs))
     }
 
     /// The compact wings only show while music is playing; a paused track is

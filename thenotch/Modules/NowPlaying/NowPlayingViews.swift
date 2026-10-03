@@ -3,6 +3,7 @@
 //  thenotch
 //
 
+import CoreAudio
 import SwiftUI
 
 // MARK: - Compact
@@ -14,6 +15,7 @@ struct CompactArtworkView: View {
     var body: some View {
         ArtworkView(service: service, cornerRadius: 5)
             .frame(width: 20, height: 20)
+            .accessibilityHidden(true)
     }
 }
 
@@ -21,20 +23,39 @@ struct CompactArtworkView: View {
 struct LevelMeterView: View {
     var service: NowPlayingService
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         let playing = service.info?.isPlaying == true
-        // Redraws a few times per second only while playing.
-        TimelineView(.periodic(from: .now, by: 0.3)) { context in
-            HStack(alignment: .center, spacing: 2) {
-                ForEach(0..<4, id: \.self) { bar in
-                    Capsule()
-                        .fill(Color.white)
-                        .frame(width: 3, height: playing ? Self.height(bar: bar, at: context.date) : 3)
+        Group {
+            if playing && !reduceMotion {
+                // Redraws a few times per second only while playing.
+                TimelineView(.periodic(from: .now, by: 0.3)) { context in
+                    bars { Self.height(bar: $0, at: context.date) }
+                        .animation(.easeInOut(duration: 0.3), value: context.date)
                 }
+            } else {
+                // Paused, or Reduce Motion: still bars, taller while playing.
+                bars { bar in playing ? [8, 12, 6, 10][bar] : 3 }
             }
-            .animation(.easeInOut(duration: 0.3), value: context.date)
         }
         .frame(height: 14)
+        .accessibilityHidden(true)
+    }
+
+    /// The artwork's color, so the meter echoes the music; white without one.
+    private var tint: AnyShapeStyle {
+        service.artworkTint.map { AnyShapeStyle(Color(nsColor: $0)) } ?? AnyShapeStyle(.primary)
+    }
+
+    private func bars(height: @escaping (Int) -> CGFloat) -> some View {
+        HStack(alignment: .center, spacing: 2) {
+            ForEach(0..<4, id: \.self) { bar in
+                Capsule()
+                    .fill(tint)
+                    .frame(width: 3, height: height(bar))
+            }
+        }
     }
 
     /// Pseudo-random height in 4...14, stable for a given bar and tick.
@@ -47,43 +68,81 @@ struct LevelMeterView: View {
 
 // MARK: - Expanded
 
+/// The open player: artwork and track on top, then progress, then
+/// controls, with the app on the left and the audio output on the right.
 struct NowPlayingExpandedView: View {
     var service: NowPlayingService
+    var outputs: AudioOutputs
 
     var body: some View {
         if let info = service.info {
-            HStack(spacing: 14) {
-                ArtworkView(service: service, cornerRadius: 10)
-                    .frame(width: 72, height: 72)
+            VStack(spacing: 0) {
+                HStack(alignment: .top, spacing: 14) {
+                    ArtworkView(service: service, cornerRadius: 14)
+                        .frame(width: 64, height: 64)
+                        .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(info.title)
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                    Text(info.artist)
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.6))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(info.title)
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.primary)
+                        Text(info.artist)
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                    }
+                    .lineLimit(1)
+                    .padding(.top, 10)
+                    .accessibilityElement(children: .combine)
 
-                    ProgressRow(info: info)
+                    Spacer(minLength: 8)
 
+                    LevelMeterView(service: service)
+                        .padding(.top, 14)
+                }
+                .padding(.bottom, 14)
+
+                ProgressRow(info: info)
+                    .padding(.bottom, 8)
+
+                HStack(spacing: 0) {
+                    if info.source.supportsFavorites {
+                        FavoriteButton(isFavorite: info.isFavorite ?? false) {
+                            service.toggleFavorite()
+                        }
+                    } else {
+                        // Spotify can't be scripted to favorite a track; an
+                        // empty slot keeps the playback controls centered.
+                        Color.clear
+                            .frame(width: 36, height: 36)
+                            .accessibilityHidden(true)
+                    }
+                    Spacer()
                     if service.permissionDenied {
                         Button("Allow thenotch to control \(info.source.scriptName)…") {
                             service.requestPermission()
                         }
                         .buttonStyle(.link)
-                        .font(.caption)
+                        .font(.callout)
                     } else {
                         PlaybackControls(service: service, isPlaying: info.isPlaying)
                     }
+                    Spacer()
+                    OutputButton(outputs: outputs)
                 }
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal, 24)
+            .padding(.bottom, 12)
+            .frame(maxHeight: .infinity, alignment: .top)
         } else {
-            Text("Nothing playing")
-                .font(.headline)
-                .foregroundStyle(.white.opacity(0.6))
+            // Invite the next step instead of a bare status.
+            VStack(spacing: 4) {
+                Text("Nothing playing")
+                    .font(.headline)
+                Text("Play something in Music or Spotify.")
+                    .font(.callout)
+            }
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }
@@ -92,20 +151,24 @@ private struct ProgressRow: View {
     let info: NowPlayingInfo
 
     var body: some View {
-        if let duration = info.duration, duration > 0, info.elapsed != nil {
-            // Only ticks while the island is open.
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                let elapsed = info.elapsed(at: context.date) ?? 0
-                HStack(spacing: 8) {
-                    Text(Self.format(elapsed))
-                    ProgressView(value: elapsed, total: duration)
-                        .progressViewStyle(.linear)
-                        .tint(.white)
-                    Text(Self.format(duration))
-                }
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(.white.opacity(0.6))
+        // Always laid out, so the controls don't jump when a track has no
+        // known position (shown as an empty bar without times).
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let duration = info.duration ?? 0
+            let elapsed = min(info.elapsed(at: context.date) ?? 0, duration)
+            let known = duration > 0 && info.elapsed != nil
+            HStack(spacing: 10) {
+                Text(known ? Self.format(elapsed) : "")
+                    .frame(width: 34, alignment: .leading)
+                ProgressBar(fraction: known ? elapsed / duration : 0)
+                Text(known ? Self.format(duration) : "")
+                    .frame(width: 34, alignment: .trailing)
             }
+            .font(.callout.weight(.medium).monospacedDigit())
+            .foregroundStyle(.secondary)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Playback position")
+            .accessibilityValue(known ? "\(Self.format(elapsed)) of \(Self.format(duration))" : "Unknown")
         }
     }
 
@@ -116,28 +179,121 @@ private struct ProgressRow: View {
     }
 }
 
+/// Thick rounded track with the played part filled.
+private struct ProgressBar: View {
+    let fraction: Double
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(.white.opacity(0.2))
+                Capsule()
+                    .fill(.white.opacity(0.7))
+                    .frame(width: geometry.size.width * max(0, min(fraction, 1)))
+            }
+        }
+        .frame(height: 6)
+    }
+}
+
 private struct PlaybackControls: View {
     var service: NowPlayingService
     let isPlaying: Bool
 
     var body: some View {
         HStack(spacing: 22) {
-            control("backward.fill") { service.previousTrack() }
-            control(isPlaying ? "pause.fill" : "play.fill") { service.playPause() }
-            control("forward.fill") { service.nextTrack() }
+            control("Previous Track", symbol: "backward.fill", size: 22) { service.previousTrack() }
+            control(isPlaying ? "Pause" : "Play", symbol: isPlaying ? "pause.fill" : "play.fill", size: 30) { service.playPause() }
+            control("Next Track", symbol: "forward.fill", size: 22) { service.nextTrack() }
         }
-        .padding(.top, 2)
     }
 
-    private func control(_ symbol: String, action: @escaping () -> Void) -> some View {
+    private func control(_ title: String, symbol: String, size: CGFloat, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 15))
-                .foregroundStyle(.white)
-                .frame(width: 24, height: 20)
-                .contentShape(Rectangle())
+            Label(title, systemImage: symbol)
+                .font(.system(size: size))
+                .frame(width: 40, height: 40)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(IslandIconButtonStyle(isProminent: true))
+        .help(title)
+    }
+}
+
+/// Star in a filled circle: marks the track as a favorite in Music.
+private struct FavoriteButton: View {
+    let isFavorite: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(isFavorite ? "Unfavorite" : "Favorite", systemImage: "star.fill")
+                .font(.system(size: 17))
+                .foregroundStyle(isFavorite ? AnyShapeStyle(.yellow) : AnyShapeStyle(.secondary))
+                .frame(width: 36, height: 36)
+                .contentTransition(.symbolEffect(.replace))
+        }
+        .buttonStyle(IslandIconButtonStyle(isFilled: true))
+        .help(isFavorite ? "Remove from Favorites" : "Add to Favorites")
+        .accessibilityAddTraits(isFavorite ? .isSelected : [])
+    }
+}
+
+/// The current audio output; click to pick another one.
+private struct OutputButton: View {
+    var outputs: AudioOutputs
+
+    var body: some View {
+        Button {
+            OutputMenu.show(outputs)
+        } label: {
+            Label("Audio Output", systemImage: outputs.current?.symbol ?? "hifispeaker")
+                .font(.system(size: 17))
+                .frame(width: 36, height: 36)
+        }
+        .buttonStyle(IslandIconButtonStyle())
+        .help(outputs.current.map { "Playing on \($0.name)" } ?? "Audio Output")
+        .accessibilityValue(outputs.current?.name ?? "")
+    }
+}
+
+/// Pop-up menu of audio outputs at the pointer, checked on the current one.
+@MainActor
+private enum OutputMenu {
+    /// Menu items' target; kept alive while the menu is up.
+    private static var target: Target?
+
+    static func show(_ outputs: AudioOutputs) {
+        outputs.refresh()
+        let target = Target(outputs: outputs)
+        self.target = target
+        let menu = NSMenu()
+        let header = NSMenuItem(title: "Output", action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        menu.addItem(header)
+        for device in outputs.devices {
+            let item = NSMenuItem(title: device.name, action: #selector(Target.select(_:)), keyEquivalent: "")
+            item.target = target
+            item.tag = Int(device.id)
+            item.image = NSImage(systemSymbolName: device.symbol, accessibilityDescription: nil)
+            item.state = device.id == outputs.currentID ? .on : .off
+            menu.addItem(item)
+        }
+        menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+    }
+
+    private final class Target: NSObject {
+        let outputs: AudioOutputs
+
+        init(outputs: AudioOutputs) {
+            self.outputs = outputs
+        }
+
+        @objc func select(_ item: NSMenuItem) {
+            MainActor.assumeIsolated {
+                outputs.select(AudioDeviceID(item.tag))
+            }
+        }
     }
 }
 
@@ -158,7 +314,7 @@ struct ArtworkView: View {
                     .resizable()
             } else {
                 Image(systemName: "music.note")
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
             }
         }
         .aspectRatio(contentMode: .fill)

@@ -13,28 +13,37 @@ import UniformTypeIdentifiers
 struct IslandView: View {
     var state: IslandState
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Corner radii; the expanded bottom corners are concentric with the
+    /// 24 pt content margin used by the modules.
+    private static let expandedRadii = (top: CGFloat(14), bottom: CGFloat(22))
+    private static let compactRadii = (top: CGFloat(0), bottom: CGFloat(8))
+
     var body: some View {
         let expanded = state.isExpanded
         let size = expanded ? state.expandedSize : state.compactSize
+        let radii = expanded ? Self.expandedRadii : Self.compactRadii
 
         ZStack(alignment: .top) {
-            NotchShape(topRadius: expanded ? 14 : 0, bottomRadius: expanded ? 22 : 8)
+            NotchShape(topRadius: radii.top, bottomRadius: radii.bottom)
                 .fill(Color.black)
 
             if expanded {
                 expandedContent
                     // Leave room for the notch at the top.
                     .padding(.top, state.notchSize.height + 8)
-                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .top)))
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9, anchor: .top)))
             } else if let module = state.currentModule {
                 compactContent(module)
                     .transition(.opacity)
             }
         }
         .frame(width: size.width, height: size.height)
-        .overlay(alignment: .topLeading) {
-            if expanded { moduleSwitcher }
-        }
+        // The island is black in every appearance, like the Dynamic Island;
+        // semantic styles then resolve to light-on-dark (and follow
+        // Increase Contrast).
+        .environment(\.colorScheme, .dark)
         // Only reachable while expanded: the panel ignores the mouse otherwise.
         // Modules may add their own drop zones inside; this catches the rest.
         .onDrop(of: FileDrop.acceptedTypes, isTargeted: nil, perform: drop)
@@ -43,47 +52,29 @@ struct IslandView: View {
             state.onDragOutBegan?()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .animation(.spring(response: 0.38, dampingFraction: 0.8), value: state.activities.current)
+        .animation(IslandStyle.openAnimation, value: state.activities.current)
     }
 
+
     /// Wings left and right of the notch; the middle stays clear for it.
+    /// Content sits snug against the notch so both wings read as one piece
+    /// of information (HIG Live Activities › Compact presentation).
     private func compactContent(_ module: any IslandModule) -> some View {
         HStack(spacing: 0) {
             module.compactLeading()
-                .frame(width: IslandState.wingWidth)
+                .padding(.trailing, Self.wingInset)
+                .frame(width: IslandState.wingWidth, alignment: .trailing)
             Spacer(minLength: state.notchSize.width)
             module.compactTrailing()
-                .frame(width: IslandState.wingWidth)
+                .padding(.leading, Self.wingInset)
+                .frame(width: IslandState.wingWidth, alignment: .leading)
         }
         .frame(height: state.notchSize.height)
+        .environment(\.colorScheme, .dark)
     }
 
-    /// One button per module, in the band left of the notch.
-    @ViewBuilder
-    private var moduleSwitcher: some View {
-        if state.modules.count > 1 {
-            HStack(spacing: 2) {
-                ForEach(state.modules, id: \.id) { module in
-                    let kind = ModuleKind(rawValue: module.id)
-                    let isSelected = module.id == state.expandedModule?.id
-                    Button {
-                        state.pinnedModuleID = module.id
-                        module.islandDidExpand()
-                    } label: {
-                        Image(systemName: kind?.symbol ?? "circle")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.white.opacity(isSelected ? 1 : 0.4))
-                            .frame(width: 24, height: 24)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .help(kind?.title ?? module.id)
-                }
-            }
-            .padding(.leading, 20)
-            .frame(height: state.notchSize.height)
-        }
-    }
+    /// Gap between wing content and the notch.
+    private static let wingInset: CGFloat = 10
 
     private func drop(_ providers: [NSItemProvider]) -> Bool {
         guard let receiver = state.expandedModule as? any FileDropReceiving else { return false }
@@ -101,9 +92,15 @@ struct IslandView: View {
         if let module = state.expandedModule {
             module.expandedView()
         } else {
-            Text("Nothing to show")
-                .font(.headline)
-                .foregroundStyle(.white.opacity(0.6))
+            // Every module is switched off.
+            VStack(spacing: 4) {
+                Text("No modules are on")
+                    .font(.headline)
+                Text("Turn one on in thenotch Settings.")
+                    .font(.callout)
+            }
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

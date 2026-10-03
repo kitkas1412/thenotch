@@ -19,6 +19,8 @@ final class BatteryModule: IslandModule {
     private let activities: ActivityCenter
     /// What the current peek is about, for its icon.
     private let model = BatteryPeekModel()
+    /// End of the current peek, if one is showing.
+    private var peekEndsAt: Date?
 
     init(activities: ActivityCenter) {
         self.activities = activities
@@ -49,14 +51,21 @@ final class BatteryModule: IslandModule {
         AnyView(BatteryExpandedView(service: service, model: model))
     }
 
+    /// Only during a peek: the battery alone doesn't make the island open.
+    var hasExpandedContent: Bool {
+        peekEndsAt.map { $0 > .now } ?? false
+    }
+
     private func handleChange(_ status: BatteryStatus?, previous: BatteryStatus?) {
         guard let peek = status?.peek(from: previous) else { return }
         model.peek = peek
+        let endsAt = Date.now.addingTimeInterval(Self.peekDuration)
+        peekEndsAt = endsAt
         activities.publish(LiveActivity(
             id: id,
             moduleID: id,
             priority: Self.priority,
-            expiresAt: .now.addingTimeInterval(Self.peekDuration)
+            expiresAt: endsAt
         ))
     }
 }
@@ -72,11 +81,15 @@ final class BatteryPeekModel {
 private struct BatteryIcon: View {
     var service: BatteryService
     var model: BatteryPeekModel
+    /// Point size; symbols scale as vectors with the font, not with
+    /// `scaleEffect`, which would blur them.
+    var size: CGFloat = 14
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(size: 14, weight: .semibold))
+            .font(.system(size: size, weight: .semibold))
             .foregroundStyle(tint)
+            .accessibilityHidden(true)
     }
 
     private var symbol: String {
@@ -92,10 +105,10 @@ private struct BatteryIcon: View {
     }
 
     private var tint: Color {
-        guard let status = service.status else { return .white }
+        guard let status = service.status else { return .primary }
         if status.isPluggedIn { return .green }
         if case .low = model.peek { return .red }
-        return .white
+        return .primary
     }
 }
 
@@ -105,7 +118,7 @@ private struct BatteryPercentText: View {
     var body: some View {
         Text(service.status.map { "\($0.percent)%" } ?? "")
             .font(.system(size: 13, weight: .semibold).monospacedDigit())
-            .foregroundStyle(.white)
+            .foregroundStyle(.primary)
     }
 }
 
@@ -116,20 +129,22 @@ private struct BatteryExpandedView: View {
     var body: some View {
         if let status = service.status {
             HStack(spacing: 16) {
-                BatteryIcon(service: service, model: model)
-                    .scaleEffect(2)
+                BatteryIcon(service: service, model: model, size: 30)
                     .frame(width: 48)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(status.percent)%")
                         .font(.title2.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                     Text(Self.detail(status))
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.6))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Battery")
+                .accessibilityValue("\(status.percent)%, \(Self.detail(status))")
                 Spacer()
             }
-            .padding(.horizontal, 28)
+            .padding(.horizontal, 24)
         }
     }
 
