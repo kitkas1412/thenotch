@@ -46,8 +46,16 @@ struct AppSettingsTests {
 
     @Test func moduleKindsMatchModuleIDs() {
         let activities = ActivityCenter()
+        let settings = AppSettings(defaults: defaults)
         for kind in ModuleKind.allCases {
-            #expect(kind.makeModule(activities: activities).id == kind.id)
+            #expect(kind.makeModule(activities: activities, settings: settings).id == kind.id)
         }
+    }
+
+    @Test func shelfLifetimeDefaultsToADayAndPersists() {
+        let settings = AppSettings(defaults: defaults)
+        #expect(settings.shelfLifetime == .day)
+        settings.shelfLifetime = .forever
+        #expect(AppSettings(defaults: defaults).shelfLifetime == .forever)
     }
 }

@@ -45,6 +45,23 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("Keep files for", selection: Binding(
+                    get: { settings.shelfLifetime },
+                    set: { settings.shelfLifetime = $0 }
+                )) {
+                    ForEach(ShelfLifetime.allCases) { lifetime in
+                        Text(lifetime.title).tag(lifetime)
+                    }
+                }
+                .disabled(!settings.isEnabled(.shelf))
+            } header: {
+                Text("Shelf")
+            } footer: {
+                Text("Files from Finder stay where they are; the shelf only points to them. Images and other content dragged from apps are saved by thenotch and deleted when they leave the shelf.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 LabeledContent("Version", value: Self.version)
             }
         }

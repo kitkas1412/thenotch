@@ -8,9 +8,11 @@ All notable changes to thenotch are documented here. The format follows
 
 ### Added
 
-- **Shelf**: drag files from Finder onto the notch to keep them at hand. The island opens as a drop target while you drag; click a file to open it, right-click to show it in Finder or remove it. The shelf lives in memory for now (cleared when you quit).
+- **Shelf**: drag files from Finder onto the notch to keep them at hand. The island opens as a drop target while you drag; click a file to open it, right-click to show it in Finder or remove it.
 - Buttons beside the notch in the expanded island to switch between modules.
 - Shelf: drag a file out of the shelf into Finder or any app (it's copied; the original stays put).
+- The shelf is kept across launches and follows files you rename or move. Files leave it after 1 hour, 1 day (default), 1 week or never (Settings › Shelf).
+- Images, PDFs, videos and audio dragged from apps (Safari, Photos, Mail…) can be dropped too; thenotch saves a copy and deletes it when it leaves the shelf.
 - AirDrop from the notch: while dragging files in, drop them on the **AirDrop** zone to send them right away, or use **AirDrop All** / right-click › AirDrop… on the shelf.
 
 ## [0.1.0] - 2026-10-03

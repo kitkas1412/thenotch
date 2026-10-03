@@ -39,5 +39,5 @@ extension IslandModule {
 /// are dragged toward the notch, the island opens on this module.
 @MainActor
 protocol FileDropReceiving: IslandModule {
-    func receive(_ urls: [URL])
+    func receive(_ files: [DroppedFile])
 }
