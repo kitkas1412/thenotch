@@ -13,8 +13,8 @@ struct CompactArtworkView: View {
     var service: NowPlayingService
 
     var body: some View {
-        ArtworkView(service: service, cornerRadius: 5)
-            .frame(width: 20, height: 20)
+        ArtworkView(service: service, cornerRadius: IslandStyle.Radius.small)
+            .frame(width: IslandStyle.Size.compactContent, height: IslandStyle.Size.compactContent)
             .accessibilityHidden(true)
     }
 }
@@ -30,16 +30,16 @@ struct LevelMeterView: View {
         Group {
             if playing && !reduceMotion {
                 // Redraws a few times per second only while playing.
-                TimelineView(.periodic(from: .now, by: 0.3)) { context in
+                TimelineView(.periodic(from: .now, by: IslandStyle.levelMeterTick)) { context in
                     bars { Self.height(bar: $0, at: context.date) }
-                        .animation(.easeInOut(duration: 0.3), value: context.date)
+                        .animation(.easeInOut(duration: IslandStyle.levelMeterTick), value: context.date)
                 }
             } else {
                 // Paused, or Reduce Motion: still bars, taller while playing.
                 bars { bar in playing ? [8, 12, 6, 10][bar] : 3 }
             }
         }
-        .frame(height: 14)
+        .frame(height: IslandStyle.Size.levelMeter)
         .accessibilityHidden(true)
     }
 
@@ -60,7 +60,7 @@ struct LevelMeterView: View {
 
     /// Pseudo-random height in 4...14, stable for a given bar and tick.
     private static func height(bar: Int, at date: Date) -> CGFloat {
-        let tick = Int(date.timeIntervalSinceReferenceDate / 0.3)
+        let tick = Int(date.timeIntervalSinceReferenceDate / IslandStyle.levelMeterTick)
         let seed = (tick &* 31 &+ bar &* 17) % 11
         return 4 + CGFloat(abs(seed))
     }
@@ -74,35 +74,43 @@ struct NowPlayingExpandedView: View {
     var service: NowPlayingService
     var outputs: AudioOutputs
 
+    typealias Size = IslandStyle.Size
+    typealias Spacing = IslandStyle.Spacing
+
+    /// Exactly the rows below, so the bottom margin is the content margin.
+    static let contentHeight = Size.artwork + Spacing.m + Size.labelLine + Spacing.s + Size.playerControl + Spacing.content
+
     var body: some View {
         if let info = service.info {
             VStack(spacing: 0) {
-                HStack(alignment: .top, spacing: 14) {
-                    ArtworkView(service: service, cornerRadius: 14)
-                        .frame(width: 64, height: 64)
+                HStack(alignment: .top, spacing: IslandStyle.Spacing.m) {
+                    ArtworkView(service: service, cornerRadius: IslandStyle.Radius.large)
+                        .frame(width: IslandStyle.Size.artwork, height: IslandStyle.Size.artwork)
                         .accessibilityHidden(true)
 
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: IslandStyle.Spacing.xxs) {
                         Text(info.title)
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(.islandTitle)
                             .foregroundStyle(.primary)
                         Text(info.artist)
-                            .font(.system(size: 14))
+                            .font(.islandSubtitle)
                             .foregroundStyle(.secondary)
                     }
                     .lineLimit(1)
-                    .padding(.top, 10)
+                    // Centered beside the artwork.
+                    .frame(height: IslandStyle.Size.artwork)
                     .accessibilityElement(children: .combine)
 
-                    Spacer(minLength: 8)
+                    Spacer(minLength: IslandStyle.Spacing.s)
 
+                    // Level with the title, top right.
                     LevelMeterView(service: service)
-                        .padding(.top, 14)
+                        .padding(.top, IslandStyle.Spacing.l)
                 }
-                .padding(.bottom, 14)
+                .padding(.bottom, IslandStyle.Spacing.m)
 
                 ProgressRow(info: info)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, IslandStyle.Spacing.s)
 
                 HStack(spacing: 0) {
                     if info.source.supportsFavorites {
@@ -113,7 +121,7 @@ struct NowPlayingExpandedView: View {
                         // Spotify can't be scripted to favorite a track; an
                         // empty slot keeps the playback controls centered.
                         Color.clear
-                            .frame(width: 36, height: 36)
+                            .frame(width: IslandStyle.Size.playerControl, height: IslandStyle.Size.playerControl)
                             .accessibilityHidden(true)
                     }
                     Spacer()
@@ -122,7 +130,7 @@ struct NowPlayingExpandedView: View {
                             service.requestPermission()
                         }
                         .buttonStyle(.link)
-                        .font(.callout)
+                        .font(.islandLabel)
                     } else {
                         PlaybackControls(service: service, isPlaying: info.isPlaying)
                     }
@@ -130,19 +138,10 @@ struct NowPlayingExpandedView: View {
                     OutputButton(outputs: outputs)
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 12)
+            .islandContentMargins()
             .frame(maxHeight: .infinity, alignment: .top)
         } else {
-            // Invite the next step instead of a bare status.
-            VStack(spacing: 4) {
-                Text("Nothing playing")
-                    .font(.headline)
-                Text("Play something in Music or Spotify.")
-                    .font(.callout)
-            }
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            IslandEmptyState(title: "Nothing playing", message: "Play something in Music or Spotify.")
         }
     }
 }
@@ -157,14 +156,15 @@ private struct ProgressRow: View {
             let duration = info.duration ?? 0
             let elapsed = min(info.elapsed(at: context.date) ?? 0, duration)
             let known = duration > 0 && info.elapsed != nil
-            HStack(spacing: 10) {
+            HStack(spacing: IslandStyle.Spacing.s) {
                 Text(known ? Self.format(elapsed) : "")
-                    .frame(width: 34, alignment: .leading)
-                ProgressBar(fraction: known ? elapsed / duration : 0)
+                    .frame(width: IslandStyle.Size.timeLabel, alignment: .leading)
+                IslandProgressBar(fraction: known ? elapsed / duration : 0)
                 Text(known ? Self.format(duration) : "")
-                    .frame(width: 34, alignment: .trailing)
+                    .frame(width: IslandStyle.Size.timeLabel, alignment: .trailing)
             }
-            .font(.callout.weight(.medium).monospacedDigit())
+            .font(.islandNumeric)
+            .frame(height: IslandStyle.Size.labelLine)
             .foregroundStyle(.secondary)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Playback position")
@@ -179,43 +179,25 @@ private struct ProgressRow: View {
     }
 }
 
-/// Thick rounded track with the played part filled.
-private struct ProgressBar: View {
-    let fraction: Double
-
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(.white.opacity(0.2))
-                Capsule()
-                    .fill(.white.opacity(0.7))
-                    .frame(width: geometry.size.width * max(0, min(fraction, 1)))
-            }
-        }
-        .frame(height: 6)
-    }
-}
-
 private struct PlaybackControls: View {
     var service: NowPlayingService
     let isPlaying: Bool
 
     var body: some View {
-        HStack(spacing: 22) {
-            control("Previous Track", symbol: "backward.fill", size: 22) { service.previousTrack() }
-            control(isPlaying ? "Pause" : "Play", symbol: isPlaying ? "pause.fill" : "play.fill", size: 30) { service.playPause() }
-            control("Next Track", symbol: "forward.fill", size: 22) { service.nextTrack() }
+        HStack(spacing: IslandStyle.Spacing.xl) {
+            control("Previous Track", symbol: "backward.fill", size: .large) { service.previousTrack() }
+            control(isPlaying ? "Pause" : "Play", symbol: isPlaying ? "pause.fill" : "play.fill", size: .hero) { service.playPause() }
+            control("Next Track", symbol: "forward.fill", size: .large) { service.nextTrack() }
         }
     }
 
-    private func control(_ title: String, symbol: String, size: CGFloat, action: @escaping () -> Void) -> some View {
+    private func control(_ title: String, symbol: String, size: IslandStyle.SymbolSize, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: symbol)
-                .font(.system(size: size))
-                .frame(width: 40, height: 40)
+                .font(.islandSymbol(size))
+                .frame(width: IslandStyle.Size.playerControl, height: IslandStyle.Size.playerControl)
         }
-        .buttonStyle(IslandIconButtonStyle(isProminent: true))
+        .buttonStyle(.islandIcon(isProminent: true))
         .help(title)
     }
 }
@@ -228,12 +210,12 @@ private struct FavoriteButton: View {
     var body: some View {
         Button(action: action) {
             Label(isFavorite ? "Unfavorite" : "Favorite", systemImage: "star.fill")
-                .font(.system(size: 17))
-                .foregroundStyle(isFavorite ? AnyShapeStyle(.yellow) : AnyShapeStyle(.secondary))
-                .frame(width: 36, height: 36)
+                .font(.islandSymbol(.control))
+                .foregroundStyle(isFavorite ? AnyShapeStyle(IslandSignal.favorite) : AnyShapeStyle(.secondary))
+                .frame(width: IslandStyle.Size.playerControl, height: IslandStyle.Size.playerControl)
                 .contentTransition(.symbolEffect(.replace))
         }
-        .buttonStyle(IslandIconButtonStyle(isFilled: true))
+        .buttonStyle(.islandIcon(isFilled: true))
         .help(isFavorite ? "Remove from Favorites" : "Add to Favorites")
         .accessibilityAddTraits(isFavorite ? .isSelected : [])
     }
@@ -248,10 +230,12 @@ private struct OutputButton: View {
             OutputMenu.show(outputs)
         } label: {
             Label("Audio Output", systemImage: outputs.current?.symbol ?? "hifispeaker")
-                .font(.system(size: 17))
-                .frame(width: 36, height: 36)
+                .font(.islandSymbol(.control))
+                .frame(width: IslandStyle.Size.playerControl, height: IslandStyle.Size.playerControl)
         }
-        .buttonStyle(IslandIconButtonStyle())
+        // Filled like the favorite star, so both ends of the row show their
+        // edge at the margin.
+        .buttonStyle(.islandIcon(isFilled: true))
         .help(outputs.current.map { "Playing on \($0.name)" } ?? "Audio Output")
         .accessibilityValue(outputs.current?.name ?? "")
     }

@@ -44,10 +44,10 @@ final class NowPlayingModule: IslandModule {
         service.info != nil
     }
 
-    /// Tall enough for the player (artwork row, progress, controls); the
-    /// short default when nothing plays.
-    var expandedHeight: CGFloat {
-        service.info == nil ? IslandState.defaultExpandedHeight : 206
+    /// The player (artwork row, progress row, controls, bottom margin);
+    /// the short default when nothing plays.
+    var expandedContentHeight: CGFloat {
+        service.info == nil ? IslandState.defaultContentHeight : NowPlayingExpandedView.contentHeight
     }
 
     func compactLeading() -> AnyView {

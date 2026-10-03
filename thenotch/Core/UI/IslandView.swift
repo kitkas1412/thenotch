@@ -15,24 +15,24 @@ struct IslandView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// Corner radii; the expanded bottom corners are concentric with the
-    /// 24 pt content margin used by the modules.
-    private static let expandedRadii = (top: CGFloat(14), bottom: CGFloat(22))
-    private static let compactRadii = (top: CGFloat(0), bottom: CGFloat(8))
+    private static let expandedRadii = (top: IslandStyle.Radius.islandFlare, bottom: IslandStyle.Radius.island)
 
     var body: some View {
         let expanded = state.isExpanded
         let size = expanded ? state.expandedSize : state.compactSize
-        let radii = expanded ? Self.expandedRadii : Self.compactRadii
+        let radii = expanded ? Self.expandedRadii : (top: CGFloat(0), bottom: state.compactCornerRadius)
 
         ZStack(alignment: .top) {
             NotchShape(topRadius: radii.top, bottomRadius: radii.bottom)
-                .fill(Color.black)
+                .fill(IslandColors.surface)
 
             if expanded {
                 expandedContent
-                    // Leave room for the notch at the top.
-                    .padding(.top, state.notchSize.height + 8)
+                    // Leave room for the notch at the top, and keep out of
+                    // the flares: the island's visible sides are inset by
+                    // them, and margins are measured from what's visible.
+                    .padding(.top, state.notchSize.height + IslandStyle.Spacing.content)
+                    .padding(.horizontal, IslandStyle.Radius.islandFlare)
                     .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9, anchor: .top)))
             } else if let module = state.currentModule {
                 compactContent(module)
@@ -55,26 +55,24 @@ struct IslandView: View {
         .animation(IslandStyle.openAnimation, value: state.activities.current)
     }
 
-
     /// Wings left and right of the notch; the middle stays clear for it.
     /// Content sits snug against the notch so both wings read as one piece
-    /// of information (HIG Live Activities › Compact presentation).
+    /// of information (HIG Live Activities › Compact presentation), with
+    /// equal padding on every side (`IslandState.compactPadding`).
     private func compactContent(_ module: any IslandModule) -> some View {
-        HStack(spacing: 0) {
+        let contentSize = CGSize(width: module.compactContentWidth, height: IslandStyle.Size.compactContent)
+        return HStack(spacing: 0) {
             module.compactLeading()
-                .padding(.trailing, Self.wingInset)
-                .frame(width: IslandState.wingWidth, alignment: .trailing)
+                .frame(width: contentSize.width, height: contentSize.height, alignment: .trailing)
+                .padding(state.compactPadding)
             Spacer(minLength: state.notchSize.width)
             module.compactTrailing()
-                .padding(.leading, Self.wingInset)
-                .frame(width: IslandState.wingWidth, alignment: .leading)
+                .frame(width: contentSize.width, height: contentSize.height, alignment: .leading)
+                .padding(state.compactPadding)
         }
         .frame(height: state.notchSize.height)
         .environment(\.colorScheme, .dark)
     }
-
-    /// Gap between wing content and the notch.
-    private static let wingInset: CGFloat = 10
 
     private func drop(_ providers: [NSItemProvider]) -> Bool {
         guard let receiver = state.expandedModule as? any FileDropReceiving else { return false }
@@ -93,14 +91,7 @@ struct IslandView: View {
             module.expandedView()
         } else {
             // Every module is switched off.
-            VStack(spacing: 4) {
-                Text("No modules are on")
-                    .font(.headline)
-                Text("Turn one on in thenotch Settings.")
-                    .font(.callout)
-            }
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            IslandEmptyState(title: "No modules are on", message: "Turn one on in thenotch Settings.")
         }
     }
 }

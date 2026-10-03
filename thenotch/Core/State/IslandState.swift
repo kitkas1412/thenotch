@@ -16,9 +16,6 @@ final class IslandState {
         case compact, expanded
     }
 
-    /// Width of each "wing" beside the notch while an activity is shown.
-    static let wingWidth: CGFloat = 60
-
     var mode: Mode = .compact
     /// Size of the (real or simulated) notch on the target screen.
     var notchSize = CGSize(width: NotchGeometry.fallbackWidth, height: NotchGeometry.minimumFallbackHeight)
@@ -61,17 +58,44 @@ final class IslandState {
     }
 
     static let expandedWidth: CGFloat = 520
-    static let defaultExpandedHeight: CGFloat = 160
+    /// Content height when a module doesn't pick one (or none is shown):
+    /// fits an `IslandEmptyState`.
+    static let defaultContentHeight: CGFloat = IslandEmptyState.contentHeight
 
-    /// Size of the open island: each module picks its height (HIG Live
-    /// Activities: use only the height the content needs).
+    /// Size of the open island: the notch, the margin below it, then the
+    /// shown module's content, which picks its own height (HIG Live
+    /// Activities: use only the height the content needs). Adding the
+    /// notch keeps content clear of it on every Mac.
     var expandedSize: CGSize {
-        CGSize(width: Self.expandedWidth, height: expandedModule?.expandedHeight ?? Self.defaultExpandedHeight)
+        let content = expandedModule?.expandedContentHeight ?? Self.defaultContentHeight
+        return CGSize(width: Self.expandedWidth, height: notchSize.height + IslandStyle.Spacing.content + content)
     }
 
     /// Notch size, widened by the wings while an activity is shown.
     var compactSize: CGSize {
         guard currentModule != nil else { return notchSize }
-        return CGSize(width: notchSize.width + Self.wingWidth * 2, height: notchSize.height)
+        return CGSize(width: notchSize.width + wingWidth * 2, height: notchSize.height)
+    }
+
+    /// Equal padding in the compact island: wing content is
+    /// `IslandStyle.Size.compactContent` tall, centered in the notch's
+    /// height, and has that same padding on its other sides — toward the
+    /// notch and toward the island's outer edge.
+    var compactPadding: CGFloat {
+        max(0, (notchSize.height - IslandStyle.Size.compactContent) / 2)
+    }
+
+    /// Width of each wing beside the notch: the shown module's content
+    /// with the compact padding on both sides. Both wings share it, so
+    /// the island stays centered on the notch.
+    var wingWidth: CGFloat {
+        (currentModule?.compactContentWidth ?? IslandStyle.Size.compactContent) + compactPadding * 2
+    }
+
+    /// Bottom corner radius of the compact island: the bare notch's, or
+    /// with wings, concentric with their content (its corner radius plus
+    /// the padding).
+    var compactCornerRadius: CGFloat {
+        currentModule == nil ? IslandStyle.Radius.compact : IslandStyle.Radius.small + compactPadding
     }
 }

@@ -13,12 +13,12 @@ import Testing
 private final class FakeModule: IslandModule {
     let id: String
     var hasExpandedContent: Bool
-    var expandedHeight: CGFloat
+    var expandedContentHeight: CGFloat
 
-    init(_ id: String, content: Bool = false, height: CGFloat = IslandState.defaultExpandedHeight) {
+    init(_ id: String, content: Bool = false, height: CGFloat = IslandState.defaultContentHeight) {
         self.id = id
         hasExpandedContent = content
-        expandedHeight = height
+        expandedContentHeight = height
     }
 
     func start() {}
@@ -58,7 +58,9 @@ struct IslandStateTests {
         battery.hasExpandedContent = true
         state.activities.publish(LiveActivity(id: "peek", moduleID: "battery", priority: 50))
         #expect(state.currentModule?.id == "battery")
-        #expect(state.compactSize == CGSize(width: 188 + 120, height: 32))
+        // 20 pt content with (32 − 20) / 2 = 6 pt padding on each side.
+        #expect(state.compactPadding == 6)
+        #expect(state.compactSize == CGSize(width: 188 + (20 + 12) * 2, height: 32))
         #expect(state.expandedModule?.id == "battery")
     }
 
@@ -81,10 +83,18 @@ struct IslandStateTests {
     }
 
     @Test func expandedHeightFollowsTheShownModule() {
-        #expect(state.expandedSize == CGSize(width: IslandState.expandedWidth, height: IslandState.defaultExpandedHeight))
-        let player = FakeModule("player", content: true, height: 206)
+        state.notchSize = CGSize(width: 190, height: 32)
+        let below = 32 + IslandStyle.Spacing.content
+        #expect(state.expandedSize == CGSize(width: IslandState.expandedWidth, height: below + IslandState.defaultContentHeight))
+        let player = FakeModule("player", content: true, height: 156)
         state.modules = [player]
-        #expect(state.expandedSize.height == 206)
+        #expect(state.expandedSize.height == below + 156)
+    }
+
+    /// The tallest module still fits the panel under a tall notch.
+    @Test func tallestContentFitsThePanelUnderATallNotch() {
+        state.notchSize = CGSize(width: 190, height: 38)
+        state.modules = [FakeModule("player", content: true, height: 156)]
         #expect(state.expandedSize.height <= IslandController.panelSize.height)
     }
 }

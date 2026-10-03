@@ -71,10 +71,12 @@ final class ShelfModule: FileDropReceiving {
         !store.items.isEmpty
     }
 
+    var expandedContentHeight: CGFloat { ShelfExpandedView.contentHeight }
+
     func compactLeading() -> AnyView {
         AnyView(
             Image(systemName: "tray.full.fill")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.islandSymbol(.compact, weight: .semibold))
                 .foregroundStyle(.primary)
                 .accessibilityHidden(true)
         )
