@@ -6,6 +6,8 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-03
+
 ### Added
 
 - **Shelf**: drag files from Finder onto the notch to keep them at hand. The island opens as a drop target while you drag; click a file to select it, double-click to open it, right-click to show it in Finder or remove it.
@@ -15,14 +17,19 @@ All notable changes to thenotch are documented here. The format follows
 - AirDrop from the notch: while dragging files in, drop them on the **AirDrop** zone to send them right away, or use **AirDrop All…** / right-click › AirDrop… on the shelf. Selecting a file shows Show in Finder, AirDrop… and Remove above the shelf.
 - Now Playing: a new player with large artwork, a progress bar, a level meter tinted with the artwork's color, and an audio output picker (built-in speakers, headphones, AirPlay…).
 - Now Playing: a star to add the track to Favorites in Apple Music (Spotify doesn't allow other apps to do this).
+- When more than one thing is going on, such as music playing and files on the shelf, tabs beside the notch switch between them. With only one, the island shows no tabs.
 
 ### Changed
 
 - Hovering the notch opens the island only when there's something to show: a playing or paused track, files on the shelf, or a battery alert. Otherwise the notch is left alone.
 - Accessibility: every control has a VoiceOver label, controls are at least 28 × 28 pt, the island follows Reduce Motion (a short fade instead of the spring, still level meter) and Increase Contrast, and text is larger and heavier.
 - A consistent look across the island, following a documented design system (`DESIGN.md`): one type scale, spacing on a 4 pt grid, equal padding between the content and the island's edge (24 pt when open, and around the wings beside the notch, which are now only as wide as their content), corners concentric with the island, and fills and outlines that get stronger with Increase Contrast.
-- When more than one thing is going on, such as music playing and files on the shelf, tabs beside the notch switch between them. With only one, the island shows no tabs.
 - The island's content opens and closes with the island: it is revealed as the island grows and covered as it shrinks, instead of fading out outside it.
+
+### Known limitations
+
+- Still not notarized: macOS asks you to allow the app once, and may ask for Automation permission again after an update.
+- Favorites work only with Apple Music; Now Playing still supports only Spotify and Apple Music.
 
 ## [0.1.0] - 2026-10-03
 
@@ -41,5 +48,6 @@ First public release (MVP).
 - Not notarized (no paid Apple Developer ID yet): macOS asks you to allow the app once, and may ask for Automation permission again after an update.
 - Now Playing supports only Spotify and Apple Music (not browsers or other players).
 
-[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/kitkas1412/thenotch/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kitkas1412/thenotch/releases/tag/v0.1.0
