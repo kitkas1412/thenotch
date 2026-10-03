@@ -6,6 +6,10 @@
 	objectVersion = 110;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		82D9C3A13070FD7A00BBCA71 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 82D9C3A23070FD7A00BBCA71 /* Sparkle */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		82D9C2F73070FD7A00BBCA71 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -38,6 +42,7 @@
 		82D9C2D43070FD7A00BBCA71 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				82D9C3A13070FD7A00BBCA71 /* Sparkle in Frameworks */,
 			);
 		};
 		82D9C2F33070FD7A00BBCA71 /* Frameworks */ = {
@@ -83,6 +88,9 @@
 				82D9C2D93070FD7A00BBCA71 /* thenotch */,
 			);
 			name = thenotch;
+			packageProductDependencies = (
+				82D9C3A23070FD7A00BBCA71 /* Sparkle */,
+			);
 			productName = thenotch;
 			productReference = 82D9C2D73070FD7A00BBCA71 /* thenotch.app */;
 			productType = "com.apple.product-type.application";
@@ -136,6 +144,9 @@
 			);
 			mainGroup = 82D9C2CE3070FD7A00BBCA71;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				82D9C3A33070FD7A00BBCA71 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 82D9C2D83070FD7A00BBCA71 /* Products */;
 			projectDirPath = "";
@@ -316,6 +327,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "thenotch controls Spotify and Music playback and reads the current track from the island.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Nguyễn Đình Đức. MIT License.";
@@ -351,6 +363,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "thenotch controls Spotify and Music playback and reads the current track from the island.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Nguyễn Đình Đức. MIT License.";
@@ -444,6 +457,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		82D9C3A33070FD7A00BBCA71 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		82D9C3A23070FD7A00BBCA71 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 82D9C3A33070FD7A00BBCA71 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 82D9C2CF3070FD7A00BBCA71 /* Project object */;
 	validationLevel = 1;

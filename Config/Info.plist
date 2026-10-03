@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  Keys that GENERATE_INFOPLIST_FILE can't set (INFOPLIST_KEY_* only covers
+  Apple's keys). Xcode merges this into the generated Info.plist.
+-->
+<dict>
+	<!-- Sparkle: the appcast attached to the latest GitHub release. -->
+	<key>SUFeedURL</key>
+	<string>https://github.com/kitkas1412/thenotch/releases/latest/download/appcast.xml</string>
+	<!-- Sparkle: updates must be signed with the matching private key
+	     (GitHub secret SPARKLE_PRIVATE_KEY). See README › Releasing. -->
+	<key>SUPublicEDKey</key>
+	<string>ltwcvhSTeazXrudTj8QxC9zDerfydWqW+En8U/xslSA=</string>
+</dict>
+</plist>

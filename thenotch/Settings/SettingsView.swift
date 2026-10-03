@@ -8,6 +8,7 @@ import SwiftUI
 
 struct SettingsView: View {
     var settings: AppSettings
+    var updater: Updater
 
     var body: some View {
         Form {
@@ -29,6 +30,19 @@ struct SettingsView: View {
                 if let error = settings.launchAtLoginError {
                     Text(error)
                         .foregroundStyle(.red)
+                }
+            }
+
+            Section("Updates") {
+                Toggle("Check for updates automatically", isOn: Binding(
+                    get: { updater.automaticallyChecksForUpdates },
+                    set: { updater.automaticallyChecksForUpdates = $0 }
+                ))
+                LabeledContent("Version \(Self.version)") {
+                    Button("Check Now") {
+                        updater.checkForUpdates()
+                    }
+                    .disabled(!updater.canCheckForUpdates)
                 }
             }
 
@@ -61,9 +75,6 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section {
-                LabeledContent("Version", value: Self.version)
-            }
         }
         .formStyle(.grouped)
         .frame(width: 440)

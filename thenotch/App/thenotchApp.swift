@@ -15,16 +15,18 @@ struct thenotchApp: App {
         // LSUIElement apps have no Dock icon or app menu, so this menu is
         // the only way to reach Settings and to quit.
         MenuBarExtra("thenotch", systemImage: "capsule.fill") {
-            MenuContent()
+            MenuContent(updater: appDelegate.updater)
         }
 
         Settings {
-            SettingsView(settings: appDelegate.settings)
+            SettingsView(settings: appDelegate.settings, updater: appDelegate.updater)
         }
     }
 }
 
 private struct MenuContent: View {
+    var updater: Updater
+
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
@@ -34,6 +36,11 @@ private struct MenuContent: View {
             openSettings()
         }
         .keyboardShortcut(",")
+
+        Button("Check for Updates…") {
+            updater.checkForUpdates()
+        }
+        .disabled(!updater.canCheckForUpdates)
 
         Divider()
 
