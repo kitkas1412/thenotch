@@ -57,6 +57,28 @@ final class IslandState {
         return modules.first { $0.hasExpandedContent }
     }
 
+    /// Modules with something to show, in display order. With more than
+    /// one, the open island shows a tab for each (`showsTabs`).
+    var tabModules: [any IslandModule] {
+        modules.filter(\.hasExpandedContent)
+    }
+
+    /// Tabs appear only when there's a choice: two or more modules have
+    /// content (e.g. music playing and files on the shelf). Not while files
+    /// are dragged in, which keeps the island on the shelf.
+    var showsTabs: Bool {
+        !isDraggingFiles && tabModules.count > 1
+    }
+
+    /// Shows `moduleID` until the island closes (a tab was clicked).
+    func select(_ moduleID: String) {
+        guard pinnedModuleID != moduleID,
+              let module = modules.first(where: { $0.id == moduleID })
+        else { return }
+        pinnedModuleID = moduleID
+        module.islandDidExpand()
+    }
+
     static let expandedWidth: CGFloat = 520
     /// Content height when a module doesn't pick one (or none is shown):
     /// fits an `IslandEmptyState`.

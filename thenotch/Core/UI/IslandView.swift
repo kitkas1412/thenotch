@@ -36,6 +36,16 @@ struct IslandView: View {
                     // Always laid out at the open size, so it doesn't reflow
                     // while the island grows or shrinks around it.
                     .frame(width: state.expandedSize.width, height: state.expandedSize.height, alignment: .top)
+                    // Tabs sit in the band left of the notch, unused
+                    // otherwise, aligned with the content's left margin.
+                    .overlay(alignment: .topLeading) {
+                        if state.showsTabs {
+                            ModuleTabs(state: state)
+                                .frame(height: state.notchSize.height)
+                                .padding(.leading, IslandStyle.Radius.islandFlare + IslandStyle.Spacing.content)
+                                .transition(.opacity)
+                        }
+                    }
                     .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9, anchor: .top)))
             } else if let module = state.currentModule {
                 compactContent(module)
@@ -99,6 +109,34 @@ struct IslandView: View {
         } else {
             // Every module is switched off.
             IslandEmptyState(title: "No modules are on", message: "Turn one on in thenotch Settings.")
+        }
+    }
+}
+
+/// One tab per module with something to show, so people can switch
+/// between them (e.g. from the player to the shelf). The shown module's
+/// tab is filled.
+private struct ModuleTabs: View {
+    var state: IslandState
+
+    var body: some View {
+        let shownID = state.expandedModule?.id
+        HStack(spacing: IslandStyle.Spacing.xs) {
+            ForEach(state.tabModules, id: \.id) { module in
+                let kind = ModuleKind(rawValue: module.id)
+                let isShown = module.id == shownID
+                Button {
+                    withAnimation(IslandStyle.openAnimation) {
+                        state.select(module.id)
+                    }
+                } label: {
+                    Label(kind?.title ?? module.id, systemImage: kind?.symbol ?? "circle")
+                        .font(.islandSymbol(.compact, weight: .semibold))
+                }
+                .buttonStyle(.islandIcon(isSelected: isShown))
+                .help(kind?.title ?? module.id)
+                .accessibilityAddTraits(isShown ? .isSelected : [])
+            }
         }
     }
 }
