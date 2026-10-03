@@ -33,8 +33,12 @@ final class IslandState {
 
     /// Files are being dragged and the island is open as a drop target.
     var isDraggingFiles = false
-    /// The dragged files are over the island.
-    var isDropTargeted = false
+    /// Something is being dragged out of the island; it stays open until
+    /// the drag ends.
+    var isDraggingOut = false
+    /// Called by the views when they start dragging something out; set by
+    /// the controller.
+    @ObservationIgnored var onDragOutBegan: (() -> Void)?
 
     /// Module owning the activity shown in compact mode.
     var currentModule: (any IslandModule)? {

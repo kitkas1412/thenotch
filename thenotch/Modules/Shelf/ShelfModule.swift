@@ -55,6 +55,8 @@ final class ShelfModule: FileDropReceiving {
     func expandedView() -> AnyView {
         AnyView(ShelfExpandedView(
             store: store,
+            onAdd: { [weak self] in self?.receive($0) },
+            onAirDrop: { AirDrop.send($0) },
             onOpen: { NSWorkspace.shared.open($0.url) },
             onReveal: { NSWorkspace.shared.activateFileViewerSelecting([$0.url]) },
             onRemove: { [weak self] item in

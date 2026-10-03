@@ -6,6 +6,7 @@
 import AppKit
 import QuickLookThumbnailing
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ShelfCountText: View {
     var store: ShelfStore
@@ -19,13 +20,19 @@ struct ShelfCountText: View {
 
 struct ShelfExpandedView: View {
     var store: ShelfStore
+    var onAdd: ([URL]) -> Void
+    var onAirDrop: ([URL]) -> Void
     var onOpen: (ShelfItem) -> Void
     var onReveal: (ShelfItem) -> Void
     var onRemove: (ShelfItem) -> Void
     var onClear: () -> Void
 
+    @Environment(\.isDraggingFiles) private var isDraggingFiles
+
     var body: some View {
-        if store.items.isEmpty {
+        if isDraggingFiles {
+            dropZones
+        } else if store.items.isEmpty {
             VStack(spacing: 8) {
                 Image(systemName: "tray.and.arrow.down")
                     .font(.system(size: 26))
@@ -36,20 +43,29 @@ struct ShelfExpandedView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
+                HStack(spacing: 12) {
                     Text(store.items.count == 1 ? "1 file" : "\(store.items.count) files")
                         .foregroundStyle(.white.opacity(0.6))
                     Spacer()
+                    Button("AirDrop All") {
+                        onAirDrop(store.items.map(\.url))
+                    }
                     Button("Clear", action: onClear)
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.white.opacity(0.8))
                 }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white.opacity(0.8))
                 .font(.caption.weight(.medium))
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 4) {
                         ForEach(store.items) { item in
-                            ShelfTile(item: item, onOpen: onOpen, onReveal: onReveal, onRemove: onRemove)
+                            ShelfTile(
+                                item: item,
+                                onOpen: onOpen,
+                                onReveal: onReveal,
+                                onAirDrop: { onAirDrop([$0.url]) },
+                                onRemove: onRemove
+                            )
                         }
                     }
                 }
@@ -58,15 +74,68 @@ struct ShelfExpandedView: View {
             .padding(.bottom, 10)
         }
     }
+
+    /// While files are dragged in: keep them on the shelf, or AirDrop them
+    /// right away. A drop elsewhere on the island goes to the shelf.
+    private var dropZones: some View {
+        HStack(spacing: 10) {
+            DropZone(symbol: "tray.and.arrow.down", title: "Keep on Shelf", onDrop: onAdd)
+            DropZone(symbol: "dot.radiowaves.left.and.right", title: "AirDrop", onDrop: onAirDrop)
+                .frame(width: 140)
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 12)
+    }
+}
+
+private struct DropZone: View {
+    let symbol: String
+    let title: String
+    var onDrop: ([URL]) -> Void
+
+    @State private var isTargeted = false
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: symbol)
+                .font(.system(size: 22))
+            Text(title)
+                .font(.caption.weight(.medium))
+        }
+        .foregroundStyle(.white.opacity(isTargeted ? 1 : 0.6))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.white.opacity(isTargeted ? 0.12 : 0))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(
+                    .white.opacity(isTargeted ? 0.7 : 0.3),
+                    style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
+                )
+        )
+        .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
+            Task { @MainActor in
+                let urls = await FileDrop.loadFileURLs(from: providers)
+                if !urls.isEmpty {
+                    onDrop(urls)
+                }
+            }
+            return true
+        }
+    }
 }
 
 private struct ShelfTile: View {
     let item: ShelfItem
     var onOpen: (ShelfItem) -> Void
     var onReveal: (ShelfItem) -> Void
+    var onAirDrop: (ShelfItem) -> Void
     var onRemove: (ShelfItem) -> Void
 
     @State private var isHovering = false
+    @Environment(\.beginDragOut) private var beginDragOut
 
     var body: some View {
         VStack(spacing: 4) {
@@ -101,9 +170,18 @@ private struct ShelfTile: View {
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .onTapGesture { onOpen(item) }
+        // Drag the file itself out (to Finder, Mail, a chat…). Finder
+        // copies it; the original stays where it is.
+        .onDrag {
+            beginDragOut()
+            let provider = NSItemProvider(object: item.url as NSURL)
+            provider.suggestedName = item.name
+            return provider
+        }
         .contextMenu {
             Button("Open") { onOpen(item) }
             Button("Show in Finder") { onReveal(item) }
+            Button("AirDrop…") { onAirDrop(item) }
             Divider()
             Button("Remove from Shelf") { onRemove(item) }
         }
