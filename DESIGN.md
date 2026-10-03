@@ -193,6 +193,7 @@ The content transition is opacity plus a 0.9 scale from the top. Under Reduce Mo
 | `IslandDropZone(symbol:title:onDrop:)` | Dashed target for dragged files that fills while targeted and loads files via `FileDrop`. |
 | `IslandProgressBar(fraction:)` | Determinate capsule progress, hidden from VoiceOver (the caller labels the value). |
 | `.islandContentMargins()` | The standard expanded margins. |
+| Module tabs (`IslandView`) | One `.islandIcon` per module with content (`ModuleKind.symbol`), in the band left of the notch, aligned with the content margin. They appear only when two or more modules have content (`IslandState.showsTabs`), never while files are dragged in. The shown module's tab is filled; the choice lasts until the island closes. |
 
 ## Checklist for a new module
 

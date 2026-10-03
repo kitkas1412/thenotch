@@ -16,9 +16,8 @@ struct IslandIconButtonStyle: ButtonStyle {
     var isProminent = false
 
     func makeBody(configuration: Configuration) -> some View {
-        IslandButtonBody(configuration: configuration, isSelected: isSelected || isFilled, isProminent: isProminent, shape: Circle(), insets: EdgeInsets())
+        IslandButtonBody(configuration: configuration, isSelected: isSelected || isFilled, isProminent: isProminent, shape: Circle(), insets: EdgeInsets(), minSize: IslandStyle.Size.control)
             .labelStyle(.iconOnly)
-            .frame(minWidth: IslandStyle.Size.control, minHeight: IslandStyle.Size.control)
     }
 }
 
@@ -26,7 +25,7 @@ struct IslandIconButtonStyle: ButtonStyle {
 /// capitalization like other macOS buttons.
 struct IslandTextButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        IslandButtonBody(configuration: configuration, isSelected: false, isProminent: false, shape: Capsule(), insets: Self.insets)
+        IslandButtonBody(configuration: configuration, isSelected: false, isProminent: false, shape: Capsule(), insets: Self.insets, minSize: 0)
             .font(.islandLabel)
     }
 
@@ -53,12 +52,15 @@ private struct IslandButtonBody<S: Shape>: View {
     let isProminent: Bool
     let shape: S
     let insets: EdgeInsets
+    /// Smallest width and height, so the fill covers the whole hit target.
+    let minSize: CGFloat
 
     @State private var isHovering = false
 
     var body: some View {
         configuration.label
             .padding(insets)
+            .frame(minWidth: minSize, minHeight: minSize)
             .foregroundStyle(isProminent || isSelected || isHovering ? .primary : .secondary)
             .background(shape.fill(.island(fill)))
             .contentShape(shape)

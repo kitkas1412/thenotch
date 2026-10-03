@@ -82,6 +82,31 @@ struct IslandStateTests {
         #expect(state.expandedModule?.id == "music")
     }
 
+    @Test func tabsShowOnlyWhenSeveralModulesHaveContent() {
+        #expect(!state.showsTabs)
+        music.hasExpandedContent = true
+        #expect(!state.showsTabs)
+        shelf.hasExpandedContent = true
+        #expect(state.showsTabs)
+        #expect(state.tabModules.map(\.id) == ["music", "shelf"])
+    }
+
+    @Test func noTabsWhileFilesAreDraggedIn() {
+        music.hasExpandedContent = true
+        shelf.hasExpandedContent = true
+        state.isDraggingFiles = true
+        #expect(!state.showsTabs)
+    }
+
+    @Test func selectingATabShowsThatModule() {
+        music.hasExpandedContent = true
+        shelf.hasExpandedContent = true
+        state.activities.publish(LiveActivity(id: "song", moduleID: "music", priority: 10))
+        #expect(state.expandedModule?.id == "music")
+        state.select("shelf")
+        #expect(state.expandedModule?.id == "shelf")
+    }
+
     @Test func expandedHeightFollowsTheShownModule() {
         state.notchSize = CGSize(width: 190, height: 32)
         let below = 32 + IslandStyle.Spacing.content

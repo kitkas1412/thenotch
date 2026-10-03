@@ -23,6 +23,15 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         }
     }
 
+    /// SF Symbol for the module's tab in the open island.
+    var symbol: String {
+        switch self {
+        case .nowPlaying: "music.note"
+        case .battery: "battery.100percent"
+        case .shelf: "tray.full.fill"
+        }
+    }
+
     var summary: String {
         switch self {
         case .nowPlaying: "Track, artwork and controls for Spotify and Music."
