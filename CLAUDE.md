@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`thenotch` is a macOS menu-bar-style app that renders a "Dynamic Island" around the MacBook notch (similar to DynamicLake). The project is early in development: a black island sits over the notch and expands on hover with placeholder content; modules (Now Playing, Battery…) are not implemented yet.
+`thenotch` is a macOS menu-bar-style app that renders a "Dynamic Island" around the MacBook notch (similar to DynamicLake). A black island sits over the notch and expands on hover; features are modules (Now Playing, Battery, Shelf). v0.1.0 is released on GitHub.
 
 ## Commands
 
@@ -39,6 +39,7 @@ Run the app from Xcode (⌘R). Because of `LSUIElement`, it has no Dock icon or 
   - `State/IslandState` — observable model (collapsed/expanded, content) shared between controller and views.
   - `State/HoverPolicy` — pure open/close decision from the pointer position, with hysteresis (exit region larger than entry). The controller feeds it from a global `mouseMoved` monitor plus an `.activeAlways` tracking area on the hosting view (AppKit only sends `mouseMoved` to the key window, and the panel never becomes key) and debounces opening by 150 ms; the panel only accepts mouse events while expanded.
   - `Modules/IslandModule` + `State/ActivityCenter` — features are `IslandModule`s. To add one, add a case to `ModuleKind` (`thenotch/Settings/AppSettings.swift`); its `rawValue` must equal the module's `id`. `IslandController.applyModuleSettings()` starts/stops modules as they're toggled in Settings. A module publishes a `LiveActivity` (priority, optional expiry) to `state.activities`; `ActivityCenter` picks the one shown in compact mode, and `IslandView` renders that module's `compactLeading`/`compactTrailing` wings beside the notch and its `expandedView` when open.
+  - **File drops**: a module conforming to `FileDropReceiving` (the Shelf) takes files dropped on the island. The controller watches global `leftMouseDown/Dragged/Up` events; near the notch it checks the drag pasteboard (`FileDrag`: `changeCount` must have changed since mouse-down, since the pasteboard keeps the previous drag's contents) and opens the island pinned to that module, using the wider `HoverPolicy.dragEntryRect`. `IslandView`'s `onDrop` loads the URLs via `FileDrop`.
   - `UI/IslandView` + `UI/NotchShape` — SwiftUI rendering of the island and its notch-matching shape.
 - **Feature modules** live in `thenotch/Modules/<Name>/` (service + module + views). `NowPlaying` combines `NowPlayingService` (state from Spotify/Music notifications, AppleScript controls, artwork cache) with compact wings (artwork, level meter) and an expanded player.
 - The Xcode project uses **file-system synchronized groups**: any file added under `thenotch/` is automatically part of the target; no `project.pbxproj` edits are needed when adding/moving files.

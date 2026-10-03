@@ -31,6 +31,11 @@ final class IslandState {
 
     var isExpanded: Bool { mode == .expanded }
 
+    /// Files are being dragged and the island is open as a drop target.
+    var isDraggingFiles = false
+    /// The dragged files are over the island.
+    var isDropTargeted = false
+
     /// Module owning the activity shown in compact mode.
     var currentModule: (any IslandModule)? {
         guard let moduleID = activities.current?.moduleID else { return nil }

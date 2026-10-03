@@ -68,4 +68,36 @@ struct HoverPolicyTests {
         )
         #expect(action == .open)
     }
+
+    // MARK: Dragging files
+
+    func dragAction(expanded: Bool, _ x: CGFloat, _ y: CGFloat) -> HoverPolicy.Action {
+        HoverPolicy.action(isExpanded: expanded, isDragging: true, pointer: CGPoint(x: x, y: y), notch: notch, compactSize: notch.size, expandedSize: expandedSize)
+    }
+
+    @Test func dragOpensFromFurtherAway() {
+        // 30pt below the notch: too far for hovering, close enough for a drag.
+        #expect(action(expanded: false, 756, 950 - 30) == .none)
+        #expect(dragAction(expanded: false, 756, 950 - 30) == .open)
+        #expect(dragAction(expanded: false, 662 - 39, 970) == .open)
+    }
+
+    @Test func dragIgnoresPointerOutsideDragEntryRegion() {
+        #expect(dragAction(expanded: false, 756, 950 - 41) == .none)
+        #expect(dragAction(expanded: false, 662 - 41, 970) == .none)
+    }
+
+    @Test func dragClosesLikeHoverOnceExpanded() {
+        #expect(dragAction(expanded: true, 756, 830) == .none)
+        #expect(dragAction(expanded: true, 756, 822 - 13) == .close)
+    }
+
+    @Test func exitRegionContainsDragEntryRegion() {
+        let withWings = CGSize(width: notch.width + 120, height: notch.height)
+        for compact in [notch.size, withWings] {
+            let entry = HoverPolicy.dragEntryRect(notch: notch, compactSize: compact)
+            let exit = HoverPolicy.exitRect(notch: notch, expandedSize: expandedSize)
+            #expect(exit.contains(entry))
+        }
+    }
 }

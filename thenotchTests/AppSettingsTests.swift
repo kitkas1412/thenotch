@@ -24,15 +24,15 @@ struct AppSettingsTests {
     @Test func disablingAModulePersists() {
         let settings = AppSettings(defaults: defaults)
         settings.setEnabled(.nowPlaying, false)
-        #expect(settings.enabledModules == [.battery])
-        #expect(AppSettings(defaults: defaults).enabledModules == [.battery])
+        #expect(settings.enabledModules == [.battery, .shelf])
+        #expect(AppSettings(defaults: defaults).enabledModules == [.battery, .shelf])
     }
 
     @Test func reEnablingKeepsCanonicalOrder() {
         let settings = AppSettings(defaults: defaults)
         settings.setEnabled(.nowPlaying, false)
         settings.setEnabled(.nowPlaying, true)
-        #expect(settings.enabledModules == [.nowPlaying, .battery])
+        #expect(settings.enabledModules == [.nowPlaying, .battery, .shelf])
     }
 
     @Test func changeCallbackFiresOnlyOnActualChange() {

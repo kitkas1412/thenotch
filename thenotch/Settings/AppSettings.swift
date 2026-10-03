@@ -11,6 +11,7 @@ import ServiceManagement
 enum ModuleKind: String, CaseIterable, Identifiable {
     case nowPlaying
     case battery
+    case shelf
 
     var id: String { rawValue }
 
@@ -18,6 +19,16 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         switch self {
         case .nowPlaying: "Now Playing"
         case .battery: "Battery"
+        case .shelf: "Shelf"
+        }
+    }
+
+    /// SF Symbol for the module switcher in the expanded island.
+    var symbol: String {
+        switch self {
+        case .nowPlaying: "music.note"
+        case .battery: "battery.75percent"
+        case .shelf: "tray.full"
         }
     }
 
@@ -25,6 +36,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         switch self {
         case .nowPlaying: "Track, artwork and controls for Spotify and Music."
         case .battery: "Shows the battery when you plug in, unplug, or run low."
+        case .shelf: "Drag files onto the notch to keep them at hand."
         }
     }
 
@@ -33,6 +45,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         switch self {
         case .nowPlaying: NowPlayingModule(activities: activities)
         case .battery: BatteryModule(activities: activities)
+        case .shelf: ShelfModule(activities: activities)
         }
     }
 }
