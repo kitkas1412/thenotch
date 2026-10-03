@@ -20,9 +20,10 @@ enum HoverPolicy {
     /// Tolerance around the expanded island before it closes.
     static let exitPadding: CGFloat = 12
 
-    /// Notch plus `entryPadding` on the sides and bottom.
-    static func entryRect(notch: CGRect) -> CGRect {
-        topAnchoredRect(notch: notch, size: notch.size, padding: entryPadding)
+    /// Compact island (the notch, plus its wings while an activity is
+    /// shown) plus `entryPadding` on the sides and bottom.
+    static func entryRect(notch: CGRect, compactSize: CGSize) -> CGRect {
+        topAnchoredRect(notch: notch, size: compactSize, padding: entryPadding)
     }
 
     /// Expanded island plus `exitPadding` on the sides and bottom.
@@ -34,12 +35,13 @@ enum HoverPolicy {
         isExpanded: Bool,
         pointer: CGPoint,
         notch: CGRect,
+        compactSize: CGSize,
         expandedSize: CGSize
     ) -> Action {
         if isExpanded {
             return exitRect(notch: notch, expandedSize: expandedSize).contains(pointer) ? .none : .close
         }
-        return entryRect(notch: notch).contains(pointer) ? .open : .none
+        return entryRect(notch: notch, compactSize: compactSize).contains(pointer) ? .open : .none
     }
 
     /// Rect of `size` centered on the notch and hanging from the top of the

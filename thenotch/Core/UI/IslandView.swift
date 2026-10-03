@@ -14,23 +14,47 @@ struct IslandView: View {
 
     var body: some View {
         let expanded = state.isExpanded
-        let size = expanded ? state.expandedSize : state.notchSize
+        let size = expanded ? state.expandedSize : state.compactSize
 
         ZStack(alignment: .top) {
             NotchShape(topRadius: expanded ? 14 : 0, bottomRadius: expanded ? 22 : 8)
                 .fill(Color.black)
 
             if expanded {
-                // Placeholder until modules (Now Playing, Battery…) exist.
-                Text("Hello, Island")
-                    .font(.headline)
-                    .foregroundStyle(.white)
+                expandedContent
                     // Leave room for the notch at the top.
                     .padding(.top, state.notchSize.height + 8)
                     .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .top)))
+            } else if let module = state.currentModule {
+                compactContent(module)
+                    .transition(.opacity)
             }
         }
         .frame(width: size.width, height: size.height)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(.spring(response: 0.38, dampingFraction: 0.8), value: state.activities.current)
+    }
+
+    /// Wings left and right of the notch; the middle stays clear for it.
+    private func compactContent(_ module: any IslandModule) -> some View {
+        HStack(spacing: 0) {
+            module.compactLeading()
+                .frame(width: IslandState.wingWidth)
+            Spacer(minLength: state.notchSize.width)
+            module.compactTrailing()
+                .frame(width: IslandState.wingWidth)
+        }
+        .frame(height: state.notchSize.height)
+    }
+
+    @ViewBuilder
+    private var expandedContent: some View {
+        if let module = state.currentModule ?? state.modules.first {
+            module.expandedView()
+        } else {
+            Text("Nothing to show")
+                .font(.headline)
+                .foregroundStyle(.white.opacity(0.6))
+        }
     }
 }

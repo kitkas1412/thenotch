@@ -13,7 +13,7 @@ struct HoverPolicyTests {
     let expandedSize = CGSize(width: 520, height: 160)
 
     func action(expanded: Bool, _ x: CGFloat, _ y: CGFloat) -> HoverPolicy.Action {
-        HoverPolicy.action(isExpanded: expanded, pointer: CGPoint(x: x, y: y), notch: notch, expandedSize: expandedSize)
+        HoverPolicy.action(isExpanded: expanded, pointer: CGPoint(x: x, y: y), notch: notch, compactSize: notch.size, expandedSize: expandedSize)
     }
 
     @Test func compactOpensWhenPointerIsOnNotch() {
@@ -52,8 +52,20 @@ struct HoverPolicyTests {
 
     @Test func exitRegionContainsEntryRegion() {
         // Hysteresis: anything that opens the island must keep it open.
-        let entry = HoverPolicy.entryRect(notch: notch)
+        let entry = HoverPolicy.entryRect(notch: notch, compactSize: notch.size)
         let exit = HoverPolicy.exitRect(notch: notch, expandedSize: expandedSize)
         #expect(exit.contains(entry))
+    }
+
+    @Test func compactWithWingsOpensOverAWing() {
+        let withWings = CGSize(width: notch.width + 120, height: notch.height)
+        let action = HoverPolicy.action(
+            isExpanded: false,
+            pointer: CGPoint(x: 662 - 50, y: 970),
+            notch: notch,
+            compactSize: withWings,
+            expandedSize: expandedSize
+        )
+        #expect(action == .open)
     }
 }
