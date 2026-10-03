@@ -56,6 +56,9 @@ final class IslandController {
         settings.onModulesChange = { [weak self] in
             self?.applyModuleSettings()
         }
+        state.onDragOutBegan = { [weak self] in
+            self?.dragOutBegan()
+        }
 
         // Displays plugged/unplugged, resolution or arrangement changed.
         screenObserver = NotificationCenter.default.addObserver(
@@ -136,6 +139,8 @@ final class IslandController {
     }
 
     private func mouseMoved() {
+        // Dragging a file out of the island: stay open until it's dropped.
+        if state.isDraggingOut { return }
         let action = HoverPolicy.action(
             isExpanded: state.isExpanded,
             pointer: NSEvent.mouseLocation,
@@ -219,8 +224,24 @@ final class IslandController {
         dragChangeCountAtMouseDown = nil
         guard state.isDraggingFiles else { return }
         state.isDraggingFiles = false
-        state.isDropTargeted = false
         mouseMoved()
+    }
+
+    /// A view started dragging something out of the island. SwiftUI owns
+    /// the drag session (`NSHostingView` doesn't let subclasses see it
+    /// end), and our own drag's events reach neither monitor, so poll the
+    /// mouse button until it's released.
+    private func dragOutBegan() {
+        guard !state.isDraggingOut else { return }
+        state.isDraggingOut = true
+        Task { [weak self] in
+            while NSEvent.pressedMouseButtons & 1 != 0 {
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            guard let self else { return }
+            self.state.isDraggingOut = false
+            self.mouseMoved()
+        }
     }
 
     /// Opens after `openDelay` if the pointer is still in the entry region,

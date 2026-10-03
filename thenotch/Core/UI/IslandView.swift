@@ -32,17 +32,16 @@ struct IslandView: View {
             }
         }
         .frame(width: size.width, height: size.height)
-        .overlay {
-            if expanded { dropHighlight }
-        }
         .overlay(alignment: .topLeading) {
             if expanded { moduleSwitcher }
         }
         // Only reachable while expanded: the panel ignores the mouse otherwise.
-        .onDrop(of: [.fileURL], isTargeted: Binding(
-            get: { state.isDropTargeted },
-            set: { state.isDropTargeted = $0 }
-        ), perform: drop)
+        // Modules may add their own drop zones inside; this catches the rest.
+        .onDrop(of: [.fileURL], isTargeted: nil, perform: drop)
+        .environment(\.isDraggingFiles, state.isDraggingFiles)
+        .environment(\.beginDragOut) { [state] in
+            state.onDragOutBegan?()
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(.spring(response: 0.38, dampingFraction: 0.8), value: state.activities.current)
     }
@@ -57,21 +56,6 @@ struct IslandView: View {
                 .frame(width: IslandState.wingWidth)
         }
         .frame(height: state.notchSize.height)
-    }
-
-    /// Outline showing where to drop while files are dragged.
-    @ViewBuilder
-    private var dropHighlight: some View {
-        if state.isDraggingFiles {
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(
-                    .white.opacity(state.isDropTargeted ? 0.7 : 0.3),
-                    style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
-                )
-                .padding(.top, state.notchSize.height + 4)
-                .padding([.horizontal, .bottom], 10)
-                .allowsHitTesting(false)
-        }
     }
 
     /// One button per module, in the band left of the notch.
