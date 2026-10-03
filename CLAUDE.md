@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-`thenotch` is a macOS menu-bar-style app that renders a "Dynamic Island" around the MacBook notch (similar to DynamicLake). The project is early in development: a static black island is drawn over the notch; hover, states and modules are not implemented yet.
+`thenotch` is a macOS menu-bar-style app that renders a "Dynamic Island" around the MacBook notch (similar to DynamicLake). The project is early in development: a black island sits over the notch and expands on hover with placeholder content; modules (Now Playing, Battery…) are not implemented yet.
 
 ## Commands
 
@@ -35,6 +35,7 @@ Run the app from Xcode (⌘R). Because of `LSUIElement`, it has no Dock icon or 
   - `Window/IslandPanel` — borderless, non-activating `NSPanel` sitting at/above the menu bar level, hosting SwiftUI via `NSHostingView`.
   - `Geometry/NotchGeometry` — computes the notch rect from `NSScreen` (`safeAreaInsets`, `auxiliaryTopLeftArea` / `auxiliaryTopRightArea`); on screens without a notch it returns a simulated 190pt-wide notch under the menu bar. `targetScreen()` prefers the notched display.
   - `State/IslandState` — observable model (collapsed/expanded, content) shared between controller and views.
+  - `State/HoverPolicy` — pure open/close decision from the pointer position, with hysteresis (exit region larger than entry). The controller feeds it from global + local `mouseMoved` monitors and debounces opening by 150 ms; the panel only accepts mouse events while expanded.
   - `UI/IslandView` + `UI/NotchShape` — SwiftUI rendering of the island and its notch-matching shape.
 - The Xcode project uses **file-system synchronized groups**: any file added under `thenotch/` is automatically part of the target; no `project.pbxproj` edits are needed when adding/moving files.
 
