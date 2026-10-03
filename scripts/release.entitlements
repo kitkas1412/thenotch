@@ -5,5 +5,11 @@
 	<!-- Hardened runtime: allow Apple Events to Spotify/Music (Now Playing). -->
 	<key>com.apple.security.automation.apple-events</key>
 	<true/>
+	<!-- Load the embedded Sparkle.framework. Library validation only accepts
+	     libraries signed by Apple or with the app's Team ID, and an ad-hoc
+	     signature has no Team ID. Remove this once releases are signed with
+	     a Developer ID (the app and Sparkle then share a Team ID). -->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
 </dict>
 </plist>

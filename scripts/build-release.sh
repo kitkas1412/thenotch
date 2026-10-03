@@ -51,6 +51,19 @@ if grep -q 'get-task-allow' <<<"$entitlements"; then
   echo "error: release build has get-task-allow" >&2
   exit 1
 fi
+# Sparkle: installed copies find updates at SUFeedURL and only install
+# ones signed with the key matching SUPublicEDKey.
+for key in SUFeedURL SUPublicEDKey; do
+  value=$(/usr/libexec/PlistBuddy -c "Print $key" "$APP/Contents/Info.plist" 2>/dev/null || true)
+  if [ -z "$value" ] || [[ "$value" == REPLACE_WITH_* ]]; then
+    echo "error: $key is missing from Info.plist (Config/Info.plist)" >&2
+    exit 1
+  fi
+done
+# The app must actually launch: dyld refuses the embedded Sparkle.framework
+# under the hardened runtime unless library validation allows it.
+grep -q 'com.apple.security.cs.disable-library-validation' <<<"$entitlements" \
+  || { echo "error: disable-library-validation entitlement missing; Sparkle won't load" >&2; exit 1; }
 lipo -info "$APP/Contents/MacOS/thenotch"
 
 mkdir -p "$DIST"

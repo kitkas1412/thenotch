@@ -6,6 +6,10 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Check for Updates…** in the menu bar menu, and automatic daily update checks (Settings › Updates), with [Sparkle](https://sparkle-project.org). Updates are verified with the project's signing key before they're installed. This version still has to be installed by hand once.
+
 ## [0.2.0] - 2026-10-03
 
 ### Added
