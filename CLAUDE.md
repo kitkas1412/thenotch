@@ -21,6 +21,8 @@ xcodebuild test -project thenotch.xcodeproj -scheme thenotch -destination 'platf
 xcodebuild test ... -only-testing:thenotchTests/NotchGeometryTests/notchedScreenUsesAuxiliaryAreas
 ```
 
+Releases: `scripts/build-release.sh [version]` builds a universal, ad-hoc-signed Release (entitlements from `scripts/release.entitlements`, no `get-task-allow`) into `dist/` as DMG + zip. Pushing a `v*` tag runs `.github/workflows/release.yml`, which publishes a GitHub Release using the matching `CHANGELOG.md` section; the tag must match `MARKETING_VERSION`.
+
 CI (`.github/workflows/ci.yml`) runs the test command on every push to `main` and every PR, on the `xcode-27` runner image. Test logs are noisy with `com.apple.linkd.autoShortcut` connection errors; they are harmless.
 
 Keep testable logic as pure functions taking plain values (see `NotchGeometry.notchRect(frame:visibleFrame:topInset:leftArea:rightArea:)`), with a thin `NSScreen` wrapper — `NSScreen` can't be constructed in tests.
