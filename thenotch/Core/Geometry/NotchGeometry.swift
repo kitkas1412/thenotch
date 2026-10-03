@@ -51,6 +51,17 @@ enum NotchGeometry {
         )
     }
 
+    /// Frame for a panel of `size`, horizontally centered on the notch and
+    /// flush with the top edge of the screen.
+    static func panelFrame(centeredOn notch: CGRect, screenFrame: CGRect, size: CGSize) -> CGRect {
+        CGRect(
+            x: notch.midX - size.width / 2,
+            y: screenFrame.maxY - size.height,
+            width: size.width,
+            height: size.height
+        )
+    }
+
     static func hasNotch(topInset: CGFloat) -> Bool {
         topInset > 0
     }
