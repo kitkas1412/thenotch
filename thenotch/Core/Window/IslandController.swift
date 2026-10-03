@@ -17,9 +17,42 @@ final class IslandController {
 
     let state = IslandState()
     private var panel: IslandPanel?
+    private var screenObserver: NSObjectProtocol?
 
     func start() {
-        guard let screen = NotchGeometry.targetScreen() else { return }
+        let panel = IslandPanel(contentRect: CGRect(origin: .zero, size: Self.panelSize))
+
+        let hostingView = NSHostingView(rootView: IslandView(state: state))
+        hostingView.sizingOptions = []  // keep the panel at its fixed size
+        panel.contentView = hostingView
+
+        // The panel covers part of the menu bar; let clicks pass through.
+        panel.ignoresMouseEvents = true
+        self.panel = panel
+
+        reposition()
+
+        // Displays plugged/unplugged, resolution or arrangement changed.
+        screenObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.reposition()
+            }
+        }
+    }
+
+    /// Moves the panel onto the current target screen and resizes the
+    /// island to that screen's notch. Hides the panel if there is no screen.
+    private func reposition() {
+        guard let panel else { return }
+        guard let screen = NotchGeometry.targetScreen() else {
+            panel.orderOut(nil)
+            return
+        }
+
         let notch = NotchGeometry.notchRect(for: screen)
         state.notchSize = notch.size
 
@@ -28,15 +61,7 @@ final class IslandController {
             screenFrame: screen.frame,
             size: Self.panelSize
         )
-        let panel = IslandPanel(contentRect: frame)
-
-        let hostingView = NSHostingView(rootView: IslandView(state: state))
-        hostingView.sizingOptions = []  // keep the panel at its fixed size
-        panel.contentView = hostingView
-
-        // The panel covers part of the menu bar; let clicks pass through.
-        panel.ignoresMouseEvents = true
+        panel.setFrame(frame, display: true)
         panel.orderFrontRegardless()
-        self.panel = panel
     }
 }
