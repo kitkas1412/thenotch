@@ -13,13 +13,18 @@ struct ShelfCountText: View {
 
     var body: some View {
         Text("\(store.items.count)")
-            .font(.system(size: 13, weight: .semibold).monospacedDigit())
+            .font(.islandCompact)
             .foregroundStyle(.primary)
             .accessibilityLabel(store.items.count == 1 ? "1 file on the shelf" : "\(store.items.count) files on the shelf")
     }
 }
 
 struct ShelfExpandedView: View {
+    /// The header line, one row of tiles, and the bottom margin. Header
+    /// text and tile content touch the margins; button capsules and tile
+    /// fills, shown on hover or selection, reach into them.
+    static let contentHeight = IslandStyle.Size.labelLine + IslandStyle.Spacing.m + ShelfTile.contentHeight + IslandStyle.Spacing.content
+
     var store: ShelfStore
     var onAdd: ([DroppedFile]) -> Void
     var onAirDrop: ([URL]) -> Void
@@ -38,21 +43,17 @@ struct ShelfExpandedView: View {
         if isDraggingFiles {
             dropZones
         } else if store.items.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "tray.and.arrow.down")
-                    .font(.system(size: 26))
-                    .accessibilityHidden(true)
-                Text("Drag files onto the notch to keep them here")
-                    .font(.callout)
-            }
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            IslandEmptyState(
+                title: "Shelf is empty",
+                message: "Drag files onto the notch to keep them here.",
+                symbol: "tray.and.arrow.down"
+            )
         } else {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: IslandStyle.Spacing.m) {
                 header
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 4) {
+                    LazyHStack(spacing: IslandStyle.Spacing.xs) {
                         ForEach(store.items) { item in
                             ShelfTile(
                                 item: item,
@@ -67,9 +68,11 @@ struct ShelfExpandedView: View {
                         }
                     }
                 }
+                // Tile content touches the margins; the tile's padding,
+                // where its hover and selection fill shows, reaches into them.
+                .padding(-IslandStyle.Spacing.xs)
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 8)
+            .islandContentMargins()
             // Clicking empty space clears the selection, as in Finder.
             .background {
                 Color.clear
@@ -87,13 +90,13 @@ struct ShelfExpandedView: View {
     /// (HIG Context menus › "Always make context menu items available in
     /// the main interface"): they act on the selected file, or on all files.
     private var header: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: IslandStyle.Spacing.xs) {
             if let item = selectedItem {
                 Text(item.name)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .foregroundStyle(.secondary)
-                Spacer(minLength: 8)
+                Spacer(minLength: IslandStyle.Spacing.s)
                 Button("Show in Finder") { onReveal(item) }
                 Button("AirDrop…") { onAirDrop([item.url]) }
                 Button("Remove") {
@@ -103,74 +106,40 @@ struct ShelfExpandedView: View {
             } else {
                 Text(store.items.count == 1 ? "1 file" : "\(store.items.count) files")
                     .foregroundStyle(.secondary)
-                Spacer(minLength: 8)
+                Spacer(minLength: IslandStyle.Spacing.s)
                 Button("AirDrop All…") {
                     onAirDrop(store.items.map(\.url))
                 }
                 Button("Clear", action: onClear)
             }
         }
-        .font(.callout.weight(.medium))
-        .buttonStyle(IslandTextButtonStyle())
+        .font(.islandLabel)
+        .buttonStyle(.islandText)
+        // Borderless buttons: their text, not their hover capsule, lines
+        // up with the margins, like the label on the left.
+        .padding(.trailing, -IslandStyle.Spacing.s)
+        .padding(.vertical, -IslandTextButtonStyle.verticalInset)
     }
 
     /// While files are dragged in: keep them on the shelf, or AirDrop them
     /// right away. A drop elsewhere on the island goes to the shelf.
     private var dropZones: some View {
-        HStack(spacing: 10) {
-            DropZone(symbol: "tray.and.arrow.down", title: "Keep on Shelf", onDrop: onAdd)
-            DropZone(symbol: "dot.radiowaves.left.and.right", title: "AirDrop") { onAirDrop($0.map(\.url)) }
-                .frame(width: 140)
+        HStack(spacing: IslandStyle.Spacing.m) {
+            IslandDropZone(symbol: "tray.and.arrow.down", title: "Keep on Shelf", onDrop: onAdd)
+            IslandDropZone(symbol: "dot.radiowaves.left.and.right", title: "AirDrop") { onAirDrop($0.map(\.url)) }
+                .frame(width: Self.airDropZoneWidth)
         }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 12)
+        .islandContentMargins()
     }
-}
 
-private struct DropZone: View {
-    let symbol: String
-    let title: String
-    var onDrop: ([DroppedFile]) -> Void
-
-    @State private var isTargeted = false
-
-    var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: symbol)
-                .font(.system(size: 22))
-                .accessibilityHidden(true)
-            Text(title)
-                .font(.callout.weight(.medium))
-        }
-        .foregroundStyle(isTargeted ? .primary : .secondary)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isTargeted ? IslandStyle.hoverFill : .clear)
-        )
-        // At least 3:1 against black for the zone's edge: 45 % white is
-        // #737373, 4.4:1 (30 % was 2.4:1).
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(
-                    .white.opacity(isTargeted ? 0.8 : 0.45),
-                    style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
-                )
-        )
-        .accessibilityElement(children: .combine)
-        .onDrop(of: FileDrop.acceptedTypes, isTargeted: $isTargeted) { providers in
-            Task { @MainActor in
-                let files = await FileDrop.loadFiles(from: providers)
-                if !files.isEmpty {
-                    onDrop(files)
-                }
-            }
-            return true
-        }
-    }
+    /// Keeping files is the main use, so its zone takes the rest.
+    private static let airDropZoneWidth: CGFloat = 140
 }
 
 private struct ShelfTile: View {
+    /// Thumbnail and two lines of name, without the tile's padding.
+    static let contentHeight = IslandStyle.Spacing.xs + IslandStyle.Size.thumbnail + IslandStyle.Size.control
+
     let item: ShelfItem
     var isSelected: Bool
     var onSelect: (ShelfItem) -> Void
@@ -185,23 +154,22 @@ private struct ShelfTile: View {
     @Environment(\.beginDragOut) private var beginDragOut
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: IslandStyle.Spacing.xs) {
             ShelfThumbnail(url: item.url)
-                .frame(width: 44, height: 44)
-            // 11 pt medium: names must read at a glance on black (HIG
-            // Live Activities › "Use large, heavier-weight text").
+                .frame(width: IslandStyle.Size.thumbnail, height: IslandStyle.Size.thumbnail)
             Text(item.name)
-                .font(.subheadline.weight(.medium))
+                .font(.islandCaption)
                 .foregroundStyle(.primary)
                 .lineLimit(2)
                 .truncationMode(.middle)
                 .multilineTextAlignment(.center)
-                .frame(width: 68, height: 28, alignment: .top)
+                // Two lines of 11 pt text.
+                .frame(width: IslandStyle.Size.tileLabelWidth, height: IslandStyle.Size.control, alignment: .top)
         }
-        .padding(4)
+        .padding(IslandStyle.Spacing.xs)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? Color.accentColor.opacity(0.55) : (isHovering ? IslandStyle.hoverFill : .clear))
+            RoundedRectangle(cornerRadius: IslandStyle.Radius.medium, style: .continuous)
+                .fill(isSelected ? AnyShapeStyle(IslandSignal.selection) : AnyShapeStyle(.island(isHovering ? .hover : .clear)))
         )
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
@@ -256,7 +224,7 @@ private struct ShelfThumbnail: View {
             .task(id: url) {
                 let request = QLThumbnailGenerator.Request(
                     fileAt: url,
-                    size: CGSize(width: 44, height: 44),
+                    size: CGSize(width: IslandStyle.Size.thumbnail, height: IslandStyle.Size.thumbnail),
                     scale: displayScale,
                     representationTypes: .thumbnail
                 )

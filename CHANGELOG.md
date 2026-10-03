@@ -20,6 +20,7 @@ All notable changes to thenotch are documented here. The format follows
 
 - Hovering the notch opens the island only when there's something to show: a playing or paused track, files on the shelf, or a battery alert. Otherwise the notch is left alone.
 - Accessibility: every control has a VoiceOver label, controls are at least 28 × 28 pt, the island follows Reduce Motion (a short fade instead of the spring, still level meter) and Increase Contrast, and text is larger and heavier.
+- A consistent look across the island, following a documented design system (`DESIGN.md`): one type scale, spacing on a 4 pt grid, equal padding between the content and the island's edge (24 pt when open, and around the wings beside the notch, which are now only as wide as their content), corners concentric with the island, and fills and outlines that get stronger with Increase Contrast.
 
 ## [0.1.0] - 2026-10-03
 

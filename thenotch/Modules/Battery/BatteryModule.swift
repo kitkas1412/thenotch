@@ -51,6 +51,11 @@ final class BatteryModule: IslandModule {
         AnyView(BatteryExpandedView(service: service, model: model))
     }
 
+    var expandedContentHeight: CGFloat { BatteryExpandedView.contentHeight }
+
+    /// "100%" in the trailing wing (39 pt).
+    var compactContentWidth: CGFloat { 40 }
+
     /// Only during a peek: the battery alone doesn't make the island open.
     var hasExpandedContent: Bool {
         peekEndsAt.map { $0 > .now } ?? false
@@ -81,13 +86,11 @@ final class BatteryPeekModel {
 private struct BatteryIcon: View {
     var service: BatteryService
     var model: BatteryPeekModel
-    /// Point size; symbols scale as vectors with the font, not with
-    /// `scaleEffect`, which would blur them.
-    var size: CGFloat = 14
+    var size: IslandStyle.SymbolSize = .compact
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(size: size, weight: .semibold))
+            .font(.islandSymbol(size, weight: .semibold))
             .foregroundStyle(tint)
             .accessibilityHidden(true)
     }
@@ -106,8 +109,8 @@ private struct BatteryIcon: View {
 
     private var tint: Color {
         guard let status = service.status else { return .primary }
-        if status.isPluggedIn { return .green }
-        if case .low = model.peek { return .red }
+        if status.isPluggedIn { return IslandSignal.charging }
+        if case .low = model.peek { return IslandSignal.critical }
         return .primary
     }
 }
@@ -117,26 +120,25 @@ private struct BatteryPercentText: View {
 
     var body: some View {
         Text(service.status.map { "\($0.percent)%" } ?? "")
-            .font(.system(size: 13, weight: .semibold).monospacedDigit())
+            .font(.islandCompact)
             .foregroundStyle(.primary)
     }
 }
 
-private struct BatteryExpandedView: View {
+struct BatteryExpandedView: View {
     var service: BatteryService
     var model: BatteryPeekModel
 
     var body: some View {
         if let status = service.status {
-            HStack(spacing: 16) {
-                BatteryIcon(service: service, model: model, size: 30)
-                    .frame(width: 48)
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: IslandStyle.Spacing.l) {
+                BatteryIcon(service: service, model: model, size: .hero)
+                VStack(alignment: .leading, spacing: IslandStyle.Spacing.xxs) {
                     Text("\(status.percent)%")
-                        .font(.title2.weight(.semibold).monospacedDigit())
+                        .font(.islandValue)
                         .foregroundStyle(.primary)
                     Text(Self.detail(status))
-                        .font(.callout)
+                        .font(.islandLabel)
                         .foregroundStyle(.secondary)
                 }
                 .accessibilityElement(children: .combine)
@@ -144,9 +146,14 @@ private struct BatteryExpandedView: View {
                 .accessibilityValue("\(status.percent)%, \(Self.detail(status))")
                 Spacer()
             }
-            .padding(.horizontal, 24)
+            .frame(height: Self.rowHeight)
+            .islandContentMargins()
         }
     }
+
+    /// The percentage (22 pt) over the detail line.
+    static let rowHeight: CGFloat = 28 + IslandStyle.Spacing.xxs + IslandStyle.Size.labelLine
+    static let contentHeight = rowHeight + IslandStyle.Spacing.content
 
     static func detail(_ status: BatteryStatus) -> String {
         let remaining = status.minutesRemaining.map { String(format: "%d:%02d", $0 / 60, $0 % 60) }

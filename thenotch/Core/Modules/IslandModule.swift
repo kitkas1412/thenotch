@@ -35,15 +35,23 @@ protocol IslandModule: AnyObject {
     /// Playing: a playing or paused track; Shelf: files on it).
     var hasExpandedContent: Bool { get }
 
-    /// Height of the expanded island while it shows this module, including
-    /// the band beside the notch. Must fit in `IslandController.panelSize`.
-    var expandedHeight: CGFloat { get }
+    /// Height of this module's expanded content, below the notch and the
+    /// margin under it, including its bottom margin. With the notch it
+    /// must fit in `IslandController.panelSize`.
+    var expandedContentHeight: CGFloat { get }
+
+    /// Width of the widest compact wing's content (leading or trailing),
+    /// at most `IslandStyle.Size.compactContent` tall. Content narrower
+    /// than this sits snug against the notch.
+    var compactContentWidth: CGFloat { get }
 }
 
 extension IslandModule {
     func islandDidExpand() {}
 
-    var expandedHeight: CGFloat { IslandState.defaultExpandedHeight }
+    var expandedContentHeight: CGFloat { IslandState.defaultContentHeight }
+
+    var compactContentWidth: CGFloat { IslandStyle.Size.compactContent }
 }
 
 /// A module that takes files dropped on the island (the Shelf). While files

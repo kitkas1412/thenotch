@@ -14,7 +14,7 @@ import SwiftUI
 final class IslandController {
     /// Fixed panel size, large enough for the expanded island. Only the
     /// SwiftUI content inside resizes; animating the window frame stutters.
-    static let panelSize = CGSize(width: 640, height: 220)
+    static let panelSize = CGSize(width: 640, height: 240)
 
     /// Pointer must rest in the entry region this long before opening.
     static let openDelay: Duration = .milliseconds(150)
