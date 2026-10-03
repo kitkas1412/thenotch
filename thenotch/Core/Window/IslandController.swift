@@ -42,6 +42,9 @@ final class IslandController {
         reposition()
         installMouseMonitors()
 
+        state.modules = makeModules()
+        state.modules.forEach { $0.start() }
+
         // Displays plugged/unplugged, resolution or arrangement changed.
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
@@ -52,6 +55,11 @@ final class IslandController {
                 self?.reposition()
             }
         }
+    }
+
+    /// Modules shown in the island, in display order.
+    private func makeModules() -> [any IslandModule] {
+        []
     }
 
     /// Moves the panel onto the current target screen and resizes the
@@ -106,6 +114,7 @@ final class IslandController {
             isExpanded: state.isExpanded,
             pointer: NSEvent.mouseLocation,
             notch: notch,
+            compactSize: state.compactSize,
             expandedSize: state.expandedSize
         )
         switch action {
@@ -129,7 +138,7 @@ final class IslandController {
             try? await Task.sleep(for: Self.openDelay)
             guard let self, !Task.isCancelled else { return }
             self.pendingOpen = nil
-            let stillInside = HoverPolicy.entryRect(notch: self.notch).contains(NSEvent.mouseLocation)
+            let stillInside = HoverPolicy.entryRect(notch: self.notch, compactSize: self.state.compactSize).contains(NSEvent.mouseLocation)
             if stillInside {
                 self.open()
             }

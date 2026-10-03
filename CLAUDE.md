@@ -36,6 +36,7 @@ Run the app from Xcode (⌘R). Because of `LSUIElement`, it has no Dock icon or 
   - `Geometry/NotchGeometry` — computes the notch rect from `NSScreen` (`safeAreaInsets`, `auxiliaryTopLeftArea` / `auxiliaryTopRightArea`); on screens without a notch it returns a simulated 190pt-wide notch under the menu bar. `targetScreen()` prefers the notched display.
   - `State/IslandState` — observable model (collapsed/expanded, content) shared between controller and views.
   - `State/HoverPolicy` — pure open/close decision from the pointer position, with hysteresis (exit region larger than entry). The controller feeds it from global + local `mouseMoved` monitors and debounces opening by 150 ms; the panel only accepts mouse events while expanded.
+  - `Modules/IslandModule` + `State/ActivityCenter` — features are `IslandModule`s (registered in `IslandController.makeModules()`). A module publishes a `LiveActivity` (priority, optional expiry) to `state.activities`; `ActivityCenter` picks the one shown in compact mode, and `IslandView` renders that module's `compactLeading`/`compactTrailing` wings beside the notch and its `expandedView` when open.
   - `UI/IslandView` + `UI/NotchShape` — SwiftUI rendering of the island and its notch-matching shape.
 - The Xcode project uses **file-system synchronized groups**: any file added under `thenotch/` is automatically part of the target; no `project.pbxproj` edits are needed when adding/moving files.
 
