@@ -13,12 +13,12 @@
       "Bash(git push -u origin HEAD)",
       "Bash(git push)",
       "Bash(gh auth status)",
-      "Bash(gh pr create:*)",
       "Bash(gh pr view:*)",
       "Bash(gh pr checks:*)",
       "Bash(xcodebuild:*)"
     ],
     "deny": [
+      "Bash(gh pr create:*)",
       "Bash(gh pr merge:*)",
       "Bash(git push --force:*)",
       "Bash(git push -f:*)"

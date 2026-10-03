@@ -49,4 +49,4 @@ Run the app from Xcode (⌘R). Because of `LSUIElement`, it has no Dock icon or 
 
 `main` is protected: never commit or push to it directly. Work on a new branch (`<type>/<topic>`, e.g. `feat/island-panel`), push it, and open a PR. A PR may only be merged once every CI check (`build-and-test`) passes. Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`, `ci:`, `chore:` …).
 
-The `/ship` skill (`.claude/skills/ship/`) automates branch → test → commit → push → `gh pr create`. A `PreToolUse` hook (`.claude/hooks/block-main-commits.sh`) blocks `git commit`/`git push` on `main`; `gh pr merge` is denied in `.claude/settings.json` — merging is the maintainer's call.
+The `/ship` skill (`.claude/skills/ship/`) automates branch → test → commit → push; it does not open the PR — the maintainer does that on GitHub. A `PreToolUse` hook (`.claude/hooks/block-main-commits.sh`) blocks `git commit`/`git push` on `main`; `gh pr create` and `gh pr merge` are denied in `.claude/settings.json` — merging is the maintainer's call.

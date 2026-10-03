@@ -1,11 +1,11 @@
 ---
 name: ship
-description: Ship the current changes — create a branch if on main, run tests, commit with Conventional Commits, push, and open a PR against main. Use when the user asks to ship, commit and open a PR, or "push + PR".
+description: Ship the current changes — create a branch if on main, run tests, commit with Conventional Commits, and push the branch (the user opens the PR themselves). Use when the user asks to ship, or to commit and push.
 ---
 
-# Ship changes via branch + PR
+# Ship changes on a branch
 
-`main` is protected: never commit or push to it, and never merge PRs yourself. Follow these steps in order and stop on any failure.
+`main` is protected: never commit or push to it, and never open or merge PRs yourself. Follow these steps in order and stop on any failure.
 
 ## 1. Branch
 
@@ -60,25 +60,21 @@ EOF
 git push -u origin HEAD
 ```
 
-## 6. Open the PR
+## 6. Report — do not open the PR
 
-Requires `gh` to be authenticated (`gh auth status`). If it is not, stop and ask the user to run `! gh auth login`.
+Do **not** create the pull request (no `gh pr create`); the maintainer opens it on GitHub. Give the user:
 
-If a PR already exists for this branch (`gh pr view --json url`), just report its URL — the push updated it. Otherwise:
+- The branch name and the commit(s) pushed.
+- The "Create a pull request" link printed by `git push`, i.e. `https://github.com/kitkas1412/thenotch/pull/new/<branch>` (if the branch already has an open PR, say the push updated it instead).
+- A ready-to-paste PR title (Conventional Commits, same as the commit summary or a summary of all commits) and body following `.github/pull_request_template.md`:
 
-```bash
-gh pr create --base main --title "<same as the commit summary, or a summary of all commits>" --body-file - <<'EOF'
+```markdown
 ## Summary
 - ...
 
 ## Test plan
 - [x] `xcodebuild test` passes locally
 - [ ] ...
-EOF
 ```
 
-The body follows `.github/pull_request_template.md`.
-
-## 7. Report
-
-Give the user the PR URL and say that CI (`build-and-test`) must pass before they merge. Do **not** merge the PR, enable auto-merge, or bypass branch protection.
+Remind them that CI (`build-and-test`) must pass before merging. Never merge, enable auto-merge, or bypass branch protection.
