@@ -43,7 +43,8 @@ for line in sys.stdin.read().strip().splitlines():
     text = html.escape(line.strip(), quote=False)
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
     text = re.sub(r"`(.+?)`", r"<code>\1</code>", text)
-    text = re.sub(r"\[(.+?)\]\((.+?)\)", r"<a href=\"\2\">\1</a>", text)
+    quote = chr(34)  # this script is inside single quotes
+    text = re.sub(r"\[(.+?)\]\((.+?)\)", r"<a href=" + quote + r"\2" + quote + r">\1</a>", text)
     is_item = text.startswith("- ")
     if in_list and not is_item:
         out.append("</ul>"); in_list = False

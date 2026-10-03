@@ -6,9 +6,15 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-03
+
 ### Added
 
-- **Check for Updates…** in the menu bar menu, and automatic daily update checks (Settings › Updates), with [Sparkle](https://sparkle-project.org). Updates are verified with the project's signing key before they're installed. This version still has to be installed by hand once.
+- **Check for Updates…** in the menu bar menu, and automatic daily update checks (Settings › Updates), with [Sparkle](https://sparkle-project.org). Updates are verified with the project's signing key before they're installed. This version still has to be installed by hand once; later versions update themselves.
+
+### Known limitations
+
+- Still not notarized: macOS asks you to allow the app once, and may ask for Automation permission again after an update.
 
 ## [0.2.0] - 2026-10-03
 
@@ -52,6 +58,7 @@ First public release (MVP).
 - Not notarized (no paid Apple Developer ID yet): macOS asks you to allow the app once, and may ask for Automation permission again after an update.
 - Now Playing supports only Spotify and Apple Music (not browsers or other players).
 
-[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/kitkas1412/thenotch/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kitkas1412/thenotch/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kitkas1412/thenotch/releases/tag/v0.1.0
