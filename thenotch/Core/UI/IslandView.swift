@@ -37,7 +37,7 @@ struct IslandView: View {
         }
         // Only reachable while expanded: the panel ignores the mouse otherwise.
         // Modules may add their own drop zones inside; this catches the rest.
-        .onDrop(of: [.fileURL], isTargeted: nil, perform: drop)
+        .onDrop(of: FileDrop.acceptedTypes, isTargeted: nil, perform: drop)
         .environment(\.isDraggingFiles, state.isDraggingFiles)
         .environment(\.beginDragOut) { [state] in
             state.onDragOutBegan?()
@@ -88,9 +88,9 @@ struct IslandView: View {
     private func drop(_ providers: [NSItemProvider]) -> Bool {
         guard let receiver = state.expandedModule as? any FileDropReceiving else { return false }
         Task { @MainActor in
-            let urls = await FileDrop.loadFileURLs(from: providers)
-            if !urls.isEmpty {
-                receiver.receive(urls)
+            let files = await FileDrop.loadFiles(from: providers)
+            if !files.isEmpty {
+                receiver.receive(files)
             }
         }
         return true

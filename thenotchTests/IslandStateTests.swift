@@ -4,6 +4,7 @@
 //
 
 import CoreGraphics
+import Foundation
 import Testing
 @testable import thenotch
 
@@ -15,7 +16,8 @@ struct IslandStateTests {
         state = IslandState()
         state.notchSize = CGSize(width: 188, height: 32)
         // Modules are only constructed, not started.
-        state.modules = ModuleKind.allCases.map { $0.makeModule(activities: state.activities) }
+        let settings = AppSettings(defaults: UserDefaults(suiteName: "thenotchTests.IslandState.\(UUID().uuidString)")!)
+        state.modules = ModuleKind.allCases.map { $0.makeModule(activities: state.activities, settings: settings) }
     }
 
     @Test func compactIsNotchSizedWithoutActivity() {

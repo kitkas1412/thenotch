@@ -83,7 +83,7 @@ final class IslandController {
             if let running = state.modules.first(where: { $0.id == kind.id }) {
                 return running
             }
-            let module = kind.makeModule(activities: state.activities)
+            let module = kind.makeModule(activities: state.activities, settings: settings)
             module.start()
             return module
         }
@@ -214,7 +214,10 @@ final class IslandController {
         return FileDrag.isFileDrag(
             changeCount: pasteboard.changeCount,
             changeCountAtMouseDown: changeCountAtMouseDown,
-            hasFileURLs: pasteboard.types?.contains(.fileURL) ?? false
+            carriesFiles: FileDrag.carriesFiles(
+                pasteboard.types?.map(\.rawValue) ?? [],
+                promiseTypes: NSFilePromiseReceiver.readableDraggedTypes
+            )
         )
     }
 

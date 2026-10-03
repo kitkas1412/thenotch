@@ -20,7 +20,7 @@ struct ShelfCountText: View {
 
 struct ShelfExpandedView: View {
     var store: ShelfStore
-    var onAdd: ([URL]) -> Void
+    var onAdd: ([DroppedFile]) -> Void
     var onAirDrop: ([URL]) -> Void
     var onOpen: (ShelfItem) -> Void
     var onReveal: (ShelfItem) -> Void
@@ -80,7 +80,7 @@ struct ShelfExpandedView: View {
     private var dropZones: some View {
         HStack(spacing: 10) {
             DropZone(symbol: "tray.and.arrow.down", title: "Keep on Shelf", onDrop: onAdd)
-            DropZone(symbol: "dot.radiowaves.left.and.right", title: "AirDrop", onDrop: onAirDrop)
+            DropZone(symbol: "dot.radiowaves.left.and.right", title: "AirDrop") { onAirDrop($0.map(\.url)) }
                 .frame(width: 140)
         }
         .padding(.horizontal, 24)
@@ -91,7 +91,7 @@ struct ShelfExpandedView: View {
 private struct DropZone: View {
     let symbol: String
     let title: String
-    var onDrop: ([URL]) -> Void
+    var onDrop: ([DroppedFile]) -> Void
 
     @State private var isTargeted = false
 
@@ -115,11 +115,11 @@ private struct DropZone: View {
                     style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
                 )
         )
-        .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
+        .onDrop(of: FileDrop.acceptedTypes, isTargeted: $isTargeted) { providers in
             Task { @MainActor in
-                let urls = await FileDrop.loadFileURLs(from: providers)
-                if !urls.isEmpty {
-                    onDrop(urls)
+                let files = await FileDrop.loadFiles(from: providers)
+                if !files.isEmpty {
+                    onDrop(files)
                 }
             }
             return true

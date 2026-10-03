@@ -41,11 +41,37 @@ enum ModuleKind: String, CaseIterable, Identifiable {
     }
 
     @MainActor
-    func makeModule(activities: ActivityCenter) -> any IslandModule {
+    func makeModule(activities: ActivityCenter, settings: AppSettings) -> any IslandModule {
         switch self {
         case .nowPlaying: NowPlayingModule(activities: activities)
         case .battery: BatteryModule(activities: activities)
-        case .shelf: ShelfModule(activities: activities)
+        case .shelf: ShelfModule(activities: activities, settings: settings)
+        }
+    }
+}
+
+/// How long files stay on the shelf.
+enum ShelfLifetime: String, CaseIterable, Identifiable {
+    case hour, day, week, forever
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .hour: "1 hour"
+        case .day: "1 day"
+        case .week: "1 week"
+        case .forever: "Until removed"
+        }
+    }
+
+    /// `nil` keeps files until the user removes them.
+    var interval: TimeInterval? {
+        switch self {
+        case .hour: 60 * 60
+        case .day: 24 * 60 * 60
+        case .week: 7 * 24 * 60 * 60
+        case .forever: nil
         }
     }
 }
@@ -60,6 +86,10 @@ final class AppSettings {
     /// Called after a module is switched on or off.
     @ObservationIgnored var onModulesChange: (() -> Void)?
 
+    var shelfLifetime: ShelfLifetime {
+        didSet { defaults.set(shelfLifetime.rawValue, forKey: Self.shelfLifetimeKey) }
+    }
+
     private(set) var launchAtLoginStatus: SMAppService.Status = .notRegistered
     private(set) var launchAtLoginError: String?
 
@@ -71,6 +101,7 @@ final class AppSettings {
         enabledModules = ModuleKind.allCases.filter {
             defaults.object(forKey: Self.key(for: $0)) as? Bool ?? true
         }
+        shelfLifetime = defaults.string(forKey: Self.shelfLifetimeKey).flatMap(ShelfLifetime.init) ?? .day
     }
 
     func isEnabled(_ kind: ModuleKind) -> Bool {
@@ -108,6 +139,8 @@ final class AppSettings {
     func refreshLaunchAtLogin() {
         launchAtLoginStatus = SMAppService.mainApp.status
     }
+
+    private static let shelfLifetimeKey = "shelf.lifetime"
 
     private static func key(for kind: ModuleKind) -> String {
         "module.\(kind.rawValue).enabled"
