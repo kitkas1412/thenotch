@@ -30,8 +30,8 @@ struct ShelfExpandedView: View {
     var onOpen: (ShelfItem) -> Void
     var onReveal: (ShelfItem) -> Void
     var onRemove: (ShelfItem) -> Void
-    /// The file was moved out of its place by dragging it off the shelf.
-    var onMovedOut: (ShelfItem) -> Void
+    /// The file was dropped somewhere by dragging it off the shelf.
+    var onDraggedOut: (ShelfItem, ShelfDrag.Outcome) -> Void
     var onClear: () -> Void
 
     @Environment(\.isDraggingFiles) private var isDraggingFiles
@@ -62,7 +62,7 @@ struct ShelfExpandedView: View {
                                 onReveal: onReveal,
                                 onAirDrop: { onAirDrop([$0.url]) },
                                 onRemove: onRemove,
-                                onMovedOut: onMovedOut
+                                onDraggedOut: onDraggedOut
                             )
                         }
                     }
@@ -146,7 +146,7 @@ private struct ShelfTile: View {
     var onReveal: (ShelfItem) -> Void
     var onAirDrop: (ShelfItem) -> Void
     var onRemove: (ShelfItem) -> Void
-    var onMovedOut: (ShelfItem) -> Void
+    var onDraggedOut: (ShelfItem, ShelfDrag.Outcome) -> Void
 
     @State private var isHovering = false
     @State private var isDragging = false
@@ -174,16 +174,18 @@ private struct ShelfTile: View {
         .onHover { isHovering = $0 }
         .onTapGesture(count: 2) { onOpen(item) }
         .onTapGesture { onSelect(item) }
-        // Drag the file out (to Finder, Mail, a chat…). A Finder drop on
-        // the same volume moves it, and it leaves the shelf (Cut + Paste).
+        // Drag the file out (to Finder, Mail, a browser, a chat…). A Finder
+        // drop on the same volume moves it (Cut + Paste); dropped anywhere,
+        // it leaves the shelf.
         .gesture(
             DragGesture(minimumDistance: 4)
                 .onChanged { _ in
                     guard !isDragging else { return }
                     isDragging = ShelfDrag.begin(item) { operation in
                         isDragging = false
-                        if ShelfDrag.fileLeft(after: operation) {
-                            onMovedOut(item)
+                        let outcome = ShelfDrag.outcome(of: operation)
+                        if outcome != .none {
+                            onDraggedOut(item, outcome)
                         }
                     }
                     if isDragging {

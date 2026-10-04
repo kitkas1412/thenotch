@@ -8,6 +8,7 @@ All notable changes to thenotch are documented here. The format follows
 
 ### Changed
 
+- Shelf: a file dragged out and dropped anywhere leaves the shelf, including apps that take a copy (uploading to Google Drive in a browser, attaching it in Mail, a chat). The file itself stays where it was. Cancelling the drag keeps it on the shelf.
 - Switching tabs slides the content over to the next tab, toward its side, instead of fading to a new view. With Reduce Motion on, it still fades.
 
 ## [0.3.2] - 2026-10-04
