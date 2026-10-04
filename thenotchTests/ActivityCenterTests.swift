@@ -97,4 +97,15 @@ struct ActivityCenterTests {
         #expect(presented == ["note"])
         #expect(center.current?.id == "note")
     }
+
+    /// A call's presentation lasts until its activity is removed.
+    @Test func removingReportsOnlyActivitiesThatWereThere() {
+        let center = ActivityCenter()
+        var removed: [String] = []
+        center.onRemove = { removed.append($0) }
+        center.publish(LiveActivity(id: "call", moduleID: "notifications", priority: 80, presents: true))
+        center.remove(id: "call")
+        center.remove(id: "call")
+        #expect(removed == ["call"])
+    }
 }

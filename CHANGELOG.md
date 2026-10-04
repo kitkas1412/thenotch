@@ -6,6 +6,10 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Notifications: an incoming FaceTime call, or an iPhone call on this Mac, opens the island while it rings, with who's calling and buttons to accept or decline it. The macOS call alert stays out of sight meanwhile; it comes back if the call is still ringing when you turn the module off.
+
 ## [0.7.0] - 2026-10-04
 
 ### Added

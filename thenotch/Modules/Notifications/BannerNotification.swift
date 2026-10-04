@@ -27,6 +27,8 @@ struct AXNode: Equatable, Sendable {
     var identifier: String?
     var value: String?
     var description: String?
+    /// Action names, as Accessibility gives them (`Name:Close\nTarget:…`).
+    var actions: [String] = []
     var children: [AXNode] = []
 }
 
@@ -86,7 +88,7 @@ enum NotificationBanners {
         return first
     }
 
-    private static func text(identifier: String, in node: AXNode) -> String? {
+    static func text(identifier: String, in node: AXNode) -> String? {
         var found: String?
         visit(node) { child in
             if found == nil, child.identifier == identifier, let value = child.value, !value.isEmpty {
@@ -96,7 +98,7 @@ enum NotificationBanners {
         return found
     }
 
-    private static func visit(_ node: AXNode, _ body: (AXNode) -> Void) {
+    static func visit(_ node: AXNode, _ body: (AXNode) -> Void) {
         body(node)
         for child in node.children { visit(child, body) }
     }

@@ -43,9 +43,10 @@ final class IslandController {
     private var presentation: Presentation?
 
     private struct Presentation {
-        /// Closes the island when the activity ends, unless the pointer
-        /// came over it: from then on, hovering decides.
-        var closeTask: Task<Void, Never>
+        let activityID: String
+        /// Ends the presentation when the activity expires; an activity
+        /// without expiry (a ringing call) lasts until it's removed.
+        var closeTask: Task<Void, Never>?
         var hasPointerEntered = false
     }
 
@@ -76,15 +77,20 @@ final class IslandController {
         reposition()
         installMouseMonitors()
 
+        // Before the modules start: one may present at once.
+        state.activities.onPresent = { [weak self] activity in
+            self?.present(activity)
+        }
+        state.activities.onRemove = { [weak self] id in
+            guard self?.presentation?.activityID == id else { return }
+            self?.endPresentation()
+        }
         applyModuleSettings()
         settings.onModulesChange = { [weak self] in
             self?.applyModuleSettings()
         }
         state.onDragOutBegan = { [weak self] in
             self?.dragOutBegan()
-        }
-        state.activities.onPresent = { [weak self] activity in
-            self?.present(activity)
         }
 
         observeMenus()
@@ -412,6 +418,9 @@ final class IslandController {
     /// while nobody can see it.
     private func present(_ activity: LiveActivity) {
         guard state.ambient.isVisible, !state.isDraggingFiles, !state.isDraggingOut, !isTrackingMenu else { return }
+        // A brief activity doesn't cut a lasting one short (a notification
+        // arriving while a call rings).
+        if let presentation, presentation.closeTask == nil, activity.expiresAt != nil { return }
         if state.isExpanded {
             guard presentation != nil else { return }
             state.select(activity.moduleID)
@@ -420,24 +429,33 @@ final class IslandController {
             guard state.isExpanded else { return }
         }
         let hasPointerEntered = presentation?.hasPointerEntered ?? false
-        presentation?.closeTask.cancel()
-        let duration = max(activity.expiresAt?.timeIntervalSinceNow ?? 0, 1)
-        let closeTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(duration))
-            guard let self, !Task.isCancelled else { return }
-            let hovered = self.presentation?.hasPointerEntered ?? false
-            self.presentation = nil
-            if hovered {
-                self.mouseMoved()
-            } else {
-                self.close(animated: true)
+        presentation?.closeTask?.cancel()
+        let closeTask = activity.expiresAt.map { expiresAt in
+            let duration = max(expiresAt.timeIntervalSinceNow, 1)
+            return Task { [weak self] in
+                try? await Task.sleep(for: .seconds(duration))
+                guard let self, !Task.isCancelled else { return }
+                self.endPresentation()
             }
         }
-        presentation = Presentation(closeTask: closeTask, hasPointerEntered: hasPointerEntered)
+        presentation = Presentation(activityID: activity.id, closeTask: closeTask, hasPointerEntered: hasPointerEntered)
+    }
+
+    /// The presented activity ended: the island closes, unless the pointer
+    /// came over it — from then on, hovering decides.
+    private func endPresentation() {
+        presentation?.closeTask?.cancel()
+        let hovered = presentation?.hasPointerEntered ?? false
+        presentation = nil
+        if hovered {
+            mouseMoved()
+        } else {
+            close(animated: true)
+        }
     }
 
     private func close(animated: Bool) {
-        presentation?.closeTask.cancel()
+        presentation?.closeTask?.cancel()
         presentation = nil
         cancelPendingOpen()
         guard state.isExpanded else { return }

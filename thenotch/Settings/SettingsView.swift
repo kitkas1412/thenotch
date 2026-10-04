@@ -173,7 +173,7 @@ private struct ModulesSettingsPane: View {
                     action: ("Open Privacy & Security…", { AccessibilityPermission.openSettings() })
                 )
             }
-            SettingsNote("Shows only what the banner would: with Show previews off in System Settings › Notifications, the text stays hidden. Notifications stay in Notification Center, and persistent banners are left to macOS. Nothing is saved or sent.")
+            SettingsNote("Shows only what the banner would: with Show previews off in System Settings › Notifications, the text stays hidden. Notifications stay in Notification Center, and persistent banners are left to macOS, except incoming calls, which you can accept or decline from the island. Nothing is saved or sent.")
         case .bluetooth:
             if isBluetoothDenied {
                 SettingsNotice(
