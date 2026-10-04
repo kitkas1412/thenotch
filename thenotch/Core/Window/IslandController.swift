@@ -14,7 +14,7 @@ import SwiftUI
 final class IslandController {
     /// Fixed panel size, large enough for the expanded island. Only the
     /// SwiftUI content inside resizes; animating the window frame stutters.
-    static let panelSize = CGSize(width: 640, height: 240)
+    static let panelSize = CGSize(width: 640, height: 320)
 
     /// Pointer must rest in the entry region this long before opening.
     static let openDelay: Duration = .milliseconds(150)
@@ -37,6 +37,8 @@ final class IslandController {
     private var dragChangeCountAtMouseDown: Int?
     /// Ends the drop-target state shortly after the mouse button is released.
     private var pendingDragEnd: Task<Void, Never>?
+    /// Keeps the island open while it shrinks under the pointer.
+    private var shrinkGrace = HoverPolicy.ShrinkGrace()
 
     /// How long the island stays a drop target after the mouse button is
     /// released: our global monitor sees the mouse-up before the drop
@@ -221,7 +223,7 @@ final class IslandController {
             pointer: NSEvent.mouseLocation,
             notch: notch,
             compactSize: state.compactSize,
-            expandedSize: state.expandedSize
+            expandedSize: exitSize()
         )
         switch action {
         case .open:
@@ -233,6 +235,16 @@ final class IslandController {
             if !state.isExpanded {
                 cancelPendingOpen()
             }
+        }
+    }
+
+    /// The open island's size for the exit test, kept larger for a moment
+    /// after it shrinks under the pointer (`HoverPolicy.ShrinkGrace`).
+    private func exitSize() -> CGSize {
+        guard state.isExpanded else { return state.expandedSize }
+        let pointer = NSEvent.mouseLocation
+        return shrinkGrace.exitSize(for: state.expandedSize) { [notch] size in
+            HoverPolicy.exitRect(notch: notch, expandedSize: size).contains(pointer)
         }
     }
 
@@ -265,7 +277,7 @@ final class IslandController {
             pointer: NSEvent.mouseLocation,
             notch: notch,
             compactSize: state.compactSize,
-            expandedSize: state.expandedSize
+            expandedSize: exitSize()
         )
         if action == .close {
             close(animated: true)
@@ -385,6 +397,10 @@ final class IslandController {
             state.mode = .compact
         }
         state.pinnedModuleID = nil
+        shrinkGrace.reset()
+        for module in state.modules {
+            module.islandDidCollapse()
+        }
         panel?.ignoresMouseEvents = true
     }
 }

@@ -13,6 +13,10 @@ extension EnvironmentValues {
     /// The `IslandDropZone` the dragged files are over, by title.
     @Entry var targetedDropZone: String?
 
+    /// Dragged files are over the island but no drop zone: dropped now,
+    /// they go to the shown module (the shelf).
+    @Entry var isIslandDropTargeted = false
+
     /// Ambient animation (the level meter) may run: someone can see the
     /// island and Low Power Mode is off (`AmbientConditions`). Views show a
     /// still state otherwise.

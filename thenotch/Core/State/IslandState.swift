@@ -81,18 +81,58 @@ final class IslandState {
         module.islandDidExpand()
     }
 
+    /// Standard width of the open island (`IslandModule.expandedWidth`).
     static let expandedWidth: CGFloat = 520
     /// Content height when a module doesn't pick one (or none is shown):
     /// fits an `IslandEmptyState`.
     static let defaultContentHeight: CGFloat = IslandEmptyState.contentHeight
 
-    /// Size of the open island: the notch, the margin below it, then the
-    /// shown module's content, which picks its own height (HIG Live
-    /// Activities: use only the height the content needs). Adding the
-    /// notch keeps content clear of it on every Mac.
+    /// Size of the open island: the notch, the margin below it, the tab
+    /// row if the tabs don't fit beside the notch, then the shown module's
+    /// content, which picks its own width and height (HIG Live Activities:
+    /// use only the height the content needs). Adding the notch keeps
+    /// content clear of it on every Mac.
     var expandedSize: CGSize {
-        let content = expandedModule?.expandedContentHeight ?? Self.defaultContentHeight
-        return CGSize(width: Self.expandedWidth, height: notchSize.height + IslandStyle.Spacing.content + content)
+        let module = expandedModule
+        let content = module?.expandedContentHeight ?? Self.defaultContentHeight
+        let width = module?.expandedWidth ?? Self.expandedWidth
+        return CGSize(width: width, height: contentTop(width: width) + content)
+    }
+
+    /// Where the shown module's content starts: below the notch, its
+    /// margin, and the tab row if there is one.
+    var expandedContentTop: CGFloat {
+        contentTop(width: expandedSize.width)
+    }
+
+    private func contentTop(width: CGFloat) -> CGFloat {
+        let tabRow = showsTabs && !tabsFitBesideNotch(width: width) ? Self.tabRowHeight : 0
+        return notchSize.height + IslandStyle.Spacing.content + tabRow
+    }
+
+    // MARK: - Tabs
+
+    /// Tabs and the gap below them, when they sit in a row under the notch.
+    static let tabRowHeight = IslandStyle.Size.control + IslandStyle.Spacing.m
+    static let tabSpacing = IslandStyle.Spacing.xs
+
+    /// Width of the row of tabs.
+    var tabsWidth: CGFloat {
+        let count = CGFloat(tabModules.count)
+        return count * IslandStyle.Size.control + max(count - 1, 0) * Self.tabSpacing
+    }
+
+    /// Tabs sit in the band left of the notch, after the flare and the
+    /// content margin, when it is wide enough to hold them clear of the
+    /// notch; in a narrow island (the shelf's stack) they take a row under
+    /// the notch instead.
+    var tabsBesideNotch: Bool {
+        tabsFitBesideNotch(width: expandedSize.width)
+    }
+
+    private func tabsFitBesideNotch(width: CGFloat) -> Bool {
+        let band = (width - notchSize.width) / 2
+        return band >= IslandStyle.Radius.islandFlare + IslandStyle.Spacing.content + tabsWidth + IslandStyle.Spacing.s
     }
 
     /// Notch size, widened by the wings while an activity is shown.

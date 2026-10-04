@@ -8,6 +8,10 @@ All notable changes to thenotch are documented here. The format follows
 
 ### Changed
 
+- Shelf: opens as a small square, like Dropover, with the newest files stacked on top of each other. Drag the stack to take every file at once, click "Show All" to widen the island to every file, ✕ to clear the shelf, or … for AirDrop and Show in Finder. While the shelf is empty, a small AirDrop zone in the corner sends dropped files right away. When music is playing, switching between its tab and the shelf's resizes the island; the tabs move under the notch while the shelf's square is shown.
+- Dropping files: the whole island is the drop target. Its border turns thick and white when files are over it, and the shelf just says "Drop here" instead of showing dashed drop zones.
+- Shelf list ("Show All"): files no longer highlight under the pointer; only the selected file is highlighted, as in Finder, and clicking anywhere else in the list clears the selection.
+
 - Shelf: a file dragged out and dropped anywhere leaves the shelf, including apps that take a copy (uploading to Google Drive in a browser, attaching it in Mail, a chat). The file itself stays where it was. Cancelling the drag keeps it on the shelf.
 - Switching tabs slides the content over to the next tab, toward its side, instead of fading to a new view. With Reduce Motion on, it still fades.
 

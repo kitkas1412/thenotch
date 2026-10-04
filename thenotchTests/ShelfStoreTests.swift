@@ -60,6 +60,15 @@ struct ShelfStoreTests {
         #expect(removed.map(\.url) == [a, b])
     }
 
+    @Test func removeSeveralAtOnce() {
+        store.add(files(a, b, c))
+        var removed: [ShelfItem] = []
+        store.onRemove = { removed += $0 }
+        store.remove(Set(store.items.filter { $0.url != b }.map(\.id)))
+        #expect(store.items.map(\.url) == [b])
+        #expect(removed.map(\.url) == [a, c])
+    }
+
     @Test func removeMissingDropsVanishedFiles() {
         store.add(files(a, b, c))
         store.removeMissing { $0 != b }

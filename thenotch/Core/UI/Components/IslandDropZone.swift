@@ -16,23 +16,20 @@ import SwiftUI
 struct IslandDropZone: View {
     let symbol: String
     let title: String
+    /// A small box in a row of controls (the symbol only, one control
+    /// tall; VoiceOver reads the title) instead of a zone that fills its
+    /// space.
+    var isCompact = false
     var onDrop: ([DroppedFile]) -> Void
 
     @Environment(\.targetedDropZone) private var targetedDropZone
 
     var body: some View {
         let isTargeted = targetedDropZone == title
-        let shape = RoundedRectangle(cornerRadius: IslandStyle.Radius.large, style: .continuous)
-        VStack(spacing: IslandStyle.Spacing.xs) {
-            Image(systemName: symbol)
-                .font(.islandSymbol(.large))
-                .accessibilityHidden(true)
-            Text(title)
-                .font(.islandLabel)
-        }
-        .foregroundStyle(isTargeted ? .primary : .secondary)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(shape.fill(.island(isTargeted ? .hover : .clear)))
+        let shape = RoundedRectangle(cornerRadius: isCompact ? IslandStyle.Radius.medium : IslandStyle.Radius.large, style: .continuous)
+        content
+            .foregroundStyle(isTargeted ? .primary : .secondary)
+            .background(shape.fill(.island(isTargeted ? .hover : .clear)))
         .overlay(
             shape.strokeBorder(
                 .island(isTargeted ? .outlineActive : .outline),
@@ -40,14 +37,43 @@ struct IslandDropZone: View {
             )
         )
         .accessibilityElement(children: .combine)
-        .background {
+        .islandDropTarget(id: title, perform: onDrop)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if isCompact {
+            Image(systemName: symbol)
+                .font(.islandSymbol(.compact, weight: .semibold))
+                .padding(.horizontal, IslandStyle.Spacing.m)
+                .frame(height: IslandStyle.Size.control)
+                .accessibilityLabel(title)
+        } else {
+            VStack(spacing: IslandStyle.Spacing.xs) {
+                Image(systemName: symbol)
+                    .font(.islandSymbol(.large))
+                    .accessibilityHidden(true)
+                Text(title)
+                    .font(.islandLabel)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+extension View {
+    /// Makes this view a drop target on the island, named `id` (it is the
+    /// `targetedDropZone` while files are over it). Like `IslandDropZone`,
+    /// for controls that also take files, such as an AirDrop button.
+    func islandDropTarget(id: String, perform: @escaping ([DroppedFile]) -> Void) -> some View {
+        background {
             GeometryReader { proxy in
                 Color.clear.preference(
                     key: IslandDropTarget.Key.self,
                     value: [IslandDropTarget(
-                        id: title,
+                        id: id,
                         frame: proxy.frame(in: .named(IslandDropTarget.coordinateSpace)),
-                        perform: onDrop
+                        perform: perform
                     )]
                 )
             }

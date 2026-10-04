@@ -91,6 +91,10 @@ final class ShelfStore {
         remove { $0.id == id }
     }
 
+    func remove(_ ids: Set<ShelfItem.ID>) {
+        remove { ids.contains($0.id) }
+    }
+
     func removeAll() {
         remove { _ in true }
     }
