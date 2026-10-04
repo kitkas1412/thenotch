@@ -11,6 +11,7 @@ struct SettingsView: View {
     var updater: Updater
 
     @State private var isAccessibilityTrusted = AccessibilityPermission.isTrusted
+    @State private var isBluetoothDenied = BluetoothPermission.isDenied
 
     var body: some View {
         Form {
@@ -73,6 +74,16 @@ struct SettingsView: View {
                             }
                         }
                     }
+                    if kind == .bluetooth && settings.isEnabled(.bluetooth) && isBluetoothDenied {
+                        HStack {
+                            Text("Allow thenotch in Bluetooth to see devices connect.")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Open Bluetooth…") {
+                                BluetoothPermission.openSettings()
+                            }
+                        }
+                    }
                 }
             }
 
@@ -100,6 +111,11 @@ struct SettingsView: View {
         .onAppear {
             settings.refreshLaunchAtLogin()
             isAccessibilityTrusted = AccessibilityPermission.isTrusted
+            isBluetoothDenied = BluetoothPermission.isDenied
+        }
+        // Back from System Settings, or a permission prompt answered.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            isBluetoothDenied = BluetoothPermission.isDenied
         }
         .onReceive(DistributedNotificationCenter.default().publisher(for: AccessibilityPermission.didChangeNotification)) { _ in
             // The change applies a moment after the notification.

@@ -332,6 +332,7 @@
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "thenotch controls Spotify and Music playback and reads the current track from the island.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "thenotch shows your AirPods and other Bluetooth devices, with their battery, when they connect.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Nguyễn Đình Đức. MIT License.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -368,6 +369,7 @@
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "thenotch controls Spotify and Music playback and reads the current track from the island.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "thenotch shows your AirPods and other Bluetooth devices, with their battery, when they connect.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Nguyễn Đình Đức. MIT License.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

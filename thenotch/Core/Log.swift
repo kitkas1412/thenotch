@@ -15,4 +15,6 @@ enum Log {
     static let drop = Logger(subsystem: subsystem, category: "drop")
     /// The volume and brightness keys.
     static let hud = Logger(subsystem: subsystem, category: "hud")
+    /// Bluetooth devices connecting.
+    static let bluetooth = Logger(subsystem: subsystem, category: "bluetooth")
 }
