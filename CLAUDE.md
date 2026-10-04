@@ -31,7 +31,7 @@ Run the app from Xcode (⌘R). Because of `LSUIElement`, it has no Dock icon or 
 
 ## Architecture
 
-- **Entry point** (`thenotch/App/`): `thenotchApp` declares a `MenuBarExtra` (Settings…, Quit) and a `Settings` scene, and hands control to `AppDelegate` via `@NSApplicationDelegateAdaptor`. `AppDelegate` owns `AppSettings` and the `IslandController`. The island itself is driven from AppKit, not SwiftUI scenes — do not add a `WindowGroup`.
+- **Entry point** (`thenotch/App/`): `thenotchApp` declares a `MenuBarExtra` (Settings…, Quit) and a `Settings` scene (`SettingsView`: toolbar panes General and Modules, the last one used restored via `@AppStorage("settings.pane")`; grouped forms with small controls; each module a section with its icon tile and a regular switch, its options and permission status, `SettingsNotice` with a symbol and the action that fixes it, shown under it only while it's on), and hands control to `AppDelegate` via `@NSApplicationDelegateAdaptor`. `AppDelegate` owns `AppSettings` and the `IslandController`. The island itself is driven from AppKit, not SwiftUI scenes — do not add a `WindowGroup`.
 - **Intended flow** (`thenotch/Core/`):
   - `Window/IslandController` — created in `AppDelegate.applicationDidFinishLaunching`; owns the panel, positions it over the notch, reacts to screen changes.
   - `Window/IslandPanel` — borderless, non-activating `NSPanel` sitting at/above the menu bar level, hosting SwiftUI via `NSHostingView`.

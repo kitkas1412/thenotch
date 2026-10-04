@@ -18,6 +18,8 @@ struct ClaudeMascot: View {
     /// Width of a pixel in points: 2 makes it 36×20 pt.
     var pixel: CGFloat = 2
     var isWorking = false
+    /// Claude's orange, or white on a colored tile (Settings).
+    var color = ClaudeMascot.color
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.allowsAmbientAnimation) private var allowsAmbientAnimation
@@ -72,7 +74,7 @@ struct ClaudeMascot: View {
                     path.addRect(CGRect(x: CGFloat(x) * pixel, y: CGFloat(y) * height, width: pixel, height: height))
                 }
             }
-            context.fill(path, with: .color(Self.color))
+            context.fill(path, with: .color(color))
         }
     }
 }
