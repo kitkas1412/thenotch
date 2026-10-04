@@ -42,8 +42,9 @@ final class Updater {
         controller?.checkForUpdates(nil)
     }
 
-    /// Whether Sparkle checks once a day in the background. Sparkle asks on
-    /// the second launch; Settings can change it any time.
+    /// Whether Sparkle checks once a day in the background: on by default
+    /// (`SUEnableAutomaticChecks`, `SUScheduledCheckInterval` in
+    /// `Config/Info.plist`); Settings can change it any time.
     var automaticallyChecksForUpdates: Bool {
         get {
             access(keyPath: \.automaticallyChecksForUpdates)
