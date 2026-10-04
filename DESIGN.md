@@ -190,7 +190,7 @@ The content transition is opacity plus a 0.9 scale from the top. Under Reduce Mo
 | `.buttonStyle(.islandIcon(isSelected:isFilled:isProminent:))` | Circular icon button with a 28 pt minimum, hover/pressed/selected fills, and secondary → primary on hover. Give it a `Label` so VoiceOver has a name. |
 | `.buttonStyle(.islandText)` | Capsule text button in `islandLabel`, at least 20 pt tall. |
 | `IslandEmptyState(title:message:symbol:)` | Centered heading and message that invites the next step ("Play something in Music or Spotify."). |
-| `IslandDropZone(symbol:title:onDrop:)` | Dashed target for dragged files that fills while targeted and loads files via `FileDrop`. |
+| `IslandDropZone(symbol:title:onDrop:)` | Dashed target for dragged files that fills while targeted. It only reports its frame (`IslandDropTarget`); `IslandView` takes the drop and hands the loaded files to the zone under the pointer. Never put `onDrop` inside the island: AppKit misplaces those views inside its clip shape, and drops miss them. |
 | `IslandProgressBar(fraction:)` | Determinate capsule progress, hidden from VoiceOver (the caller labels the value). |
 | `.islandContentMargins()` | The standard expanded margins. |
 | Module tabs (`IslandView`) | One `.islandIcon` per module with content (`ModuleKind.symbol`), in the band left of the notch, aligned with the content margin. They appear only when two or more modules have content (`IslandState.showsTabs`), never while files are dragged in. The shown module's tab is filled; the choice lasts until the island closes. |

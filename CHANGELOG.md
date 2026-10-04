@@ -6,6 +6,10 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Shelf: dropping files on the **AirDrop** zone sends them with AirDrop again, instead of doing nothing or putting them on the shelf. Drops on **Keep on Shelf** are taken across the whole zone.
+
 ## [0.3.0] - 2026-10-03
 
 ### Added
