@@ -137,3 +137,33 @@ struct NowPlayingFavoriteTests {
         #expect(track("Next", favorite: nil).filledIn(from: track("Song", favorite: true)).isFavorite == nil)
     }
 }
+
+struct SeekingTests {
+    let now = Date(timeIntervalSinceReferenceDate: 1_000)
+
+    func track(playing: Bool = true, duration: TimeInterval? = 200) -> NowPlayingInfo {
+        NowPlayingInfo(source: .spotify, title: "Song", artist: "A", album: "B", isPlaying: playing,
+                       duration: duration, elapsed: 10, elapsedAt: now)
+    }
+
+    @Test func seekingMovesThePositionFromNow() {
+        let later = now.addingTimeInterval(5)
+        let seeked = track().seeking(to: 120, at: later)
+        #expect(seeked.elapsed(at: later) == 120)
+        #expect(seeked.elapsed(at: later.addingTimeInterval(3)) == 123)
+        #expect(track(playing: false).seeking(to: 120, at: later).elapsed(at: later.addingTimeInterval(3)) == 120)
+    }
+
+    @Test func seekingStaysInsideTheTrack() {
+        #expect(track().seeking(to: -5, at: now).elapsed == 0)
+        #expect(track().seeking(to: 500, at: now).elapsed == 200)
+        #expect(track(duration: nil).seeking(to: 500, at: now).elapsed == 500)
+    }
+
+    @Test func progressBarFractionFollowsThePointer() {
+        #expect(IslandProgressBar.fraction(at: 50, width: 200) == 0.25)
+        #expect(IslandProgressBar.fraction(at: -10, width: 200) == 0)
+        #expect(IslandProgressBar.fraction(at: 260, width: 200) == 1)
+        #expect(IslandProgressBar.fraction(at: 10, width: 0) == 0)
+    }
+}

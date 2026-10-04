@@ -59,6 +59,15 @@ struct NowPlayingInfo: Equatable {
         return max(position, 0)
     }
 
+    /// This track with the playback position moved to `position` (clamped
+    /// to the track) at `date`, as when the app seeks.
+    func seeking(to position: TimeInterval, at date: Date) -> NowPlayingInfo {
+        var seeked = self
+        seeked.elapsed = max(0, duration.map { min(position, $0) } ?? position)
+        seeked.elapsedAt = date
+        return seeked
+    }
+
     /// Fills in what this update lacks (Music notifications carry no
     /// position; neither carries artwork) from the previous state of the
     /// same track.

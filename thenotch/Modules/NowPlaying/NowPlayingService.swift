@@ -94,6 +94,22 @@ final class NowPlayingService {
     func nextTrack() { send(.nextTrack) }
     func previousTrack() { send(.previousTrack) }
 
+    /// Moves playback to `position` seconds. The progress bar moves right
+    /// away; if the app refuses, the position is read again.
+    func seek(to position: TimeInterval) {
+        guard let info, var track = tracks[info.source] else { return }
+        track = track.seeking(to: position, at: .now)
+        tracks[info.source] = track
+        recompute()
+        Task {
+            let result = await MediaAppScripting.seek(to: track.elapsed ?? 0, in: info.source)
+            handle(result, for: info.source)
+            if case .failure(.failed) = result {
+                await refresh(info.source)
+            }
+        }
+    }
+
     /// Marks the current track as a favorite, or unmarks it (Music only).
     /// The star updates right away and reverts if Music refuses.
     func toggleFavorite() {

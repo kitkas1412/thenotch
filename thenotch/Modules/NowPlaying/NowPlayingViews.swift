@@ -112,7 +112,9 @@ struct NowPlayingExpandedView: View {
                 }
                 .padding(.bottom, IslandStyle.Spacing.m)
 
-                ProgressRow(info: info)
+                ProgressRow(info: info, canSeek: !service.permissionDenied) {
+                    service.seek(to: $0)
+                }
                     .padding(.bottom, IslandStyle.Spacing.s)
 
                 HStack(spacing: 0) {
@@ -149,20 +151,48 @@ struct NowPlayingExpandedView: View {
     }
 }
 
+/// Elapsed time, the progress bar and the track length. Clicking or
+/// dragging along the bar seeks (HIG Sliders: a track people drag along);
+/// while dragging, the bar and the elapsed time follow the pointer, and the
+/// app seeks once, on release.
 private struct ProgressRow: View {
     let info: NowPlayingInfo
+    /// Seeking needs Automation permission.
+    var canSeek: Bool
+    var onSeek: (TimeInterval) -> Void
+
+    /// Where the pointer is along the bar while dragging.
+    @State private var scrubFraction: Double?
+    @State private var isHovering = false
+    @Environment(\.beginDragOut) private var keepOpenWhileDragging
 
     var body: some View {
         // Always laid out, so the controls don't jump when a track has no
         // known position (shown as an empty bar without times).
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let duration = info.duration ?? 0
-            let elapsed = min(info.elapsed(at: context.date) ?? 0, duration)
             let known = duration > 0 && info.elapsed != nil
+            let playing = min(info.elapsed(at: context.date) ?? 0, duration)
+            let elapsed = scrubFraction.map { $0 * duration } ?? playing
+            let seekable = known && canSeek
             HStack(spacing: IslandStyle.Spacing.s) {
                 Text(known ? Self.format(elapsed) : "")
                     .frame(width: IslandStyle.Size.timeLabel, alignment: .leading)
-                IslandProgressBar(fraction: known ? elapsed / duration : 0)
+                IslandProgressBar(
+                    fraction: known ? elapsed / duration : 0,
+                    isHighlighted: seekable && (isHovering || scrubFraction != nil)
+                )
+                .overlay {
+                    // The bar is thin: the row's height, and a little
+                    // more, takes the pointer.
+                    GeometryReader { geometry in
+                        Color.clear
+                            .contentShape(Rectangle().inset(by: -IslandStyle.Spacing.xs))
+                            .onHover { isHovering = $0 }
+                            .gesture(seekable ? scrub(width: geometry.size.width, duration: duration) : nil)
+                    }
+                    .frame(height: IslandStyle.Size.labelLine)
+                }
                 Text(known ? Self.format(duration) : "")
                     .frame(width: IslandStyle.Size.timeLabel, alignment: .trailing)
             }
@@ -172,7 +202,32 @@ private struct ProgressRow: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Playback position")
             .accessibilityValue(known ? "\(Self.format(elapsed)) of \(Self.format(duration))" : "Unknown")
+            .accessibilityAdjustableAction { direction in
+                guard seekable else { return }
+                let step = direction == .increment ? Self.accessibilityStep : -Self.accessibilityStep
+                onSeek(min(max(playing + step, 0), duration))
+            }
         }
+    }
+
+    /// VoiceOver's increment and decrement, like a media app's skip.
+    static let accessibilityStep: TimeInterval = 10
+
+    /// A click seeks where it lands; a drag follows the pointer, also
+    /// outside the island, which stays open until the button is released.
+    private func scrub(width: CGFloat, duration: TimeInterval) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                if scrubFraction == nil {
+                    keepOpenWhileDragging()
+                }
+                scrubFraction = IslandProgressBar.fraction(at: value.location.x, width: width)
+            }
+            .onEnded { value in
+                let fraction = IslandProgressBar.fraction(at: value.location.x, width: width)
+                scrubFraction = nil
+                onSeek(fraction * duration)
+            }
     }
 
     /// `m:ss`
