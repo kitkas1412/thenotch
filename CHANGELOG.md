@@ -6,6 +6,10 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Player: click or drag along the progress bar to jump to another part of the track, in Spotify and Music. The time follows the pointer while you drag; the track moves when you let go. With VoiceOver, swipe up or down to skip 10 seconds.
+
 ## [0.4.1] - 2026-10-04
 
 ### Changed

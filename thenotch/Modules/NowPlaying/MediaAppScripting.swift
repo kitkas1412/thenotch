@@ -35,6 +35,13 @@ enum MediaAppScripting {
         await run("tell application \"\(source.scriptName)\" to \(command.rawValue)", source: source).map { _ in }
     }
 
+    /// Moves playback to `position` seconds into the current track.
+    static func seek(to position: TimeInterval, in source: NowPlayingInfo.Source) async -> Result<Void, ScriptError> {
+        // `String(format:)` isn't localized: always a decimal point.
+        let seconds = String(format: "%.2f", max(position, 0))
+        return await run("tell application \"\(source.scriptName)\" to set player position to \(seconds)", source: source).map { _ in }
+    }
+
     /// Reads the current track, including the playback position and (for
     /// Spotify) the artwork URL. `.success(nil)` means playback is stopped.
     static func currentTrack(of source: NowPlayingInfo.Source) async -> Result<NowPlayingInfo?, ScriptError> {
