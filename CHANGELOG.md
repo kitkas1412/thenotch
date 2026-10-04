@@ -6,6 +6,8 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-04
+
 ### Added
 
 - Notifications: an incoming FaceTime call, or an iPhone call on this Mac, opens the island while it rings, with who's calling and buttons to accept or decline it. The macOS call alert stays out of sight meanwhile; it comes back if the call is still ringing when you turn the module off.
@@ -127,7 +129,8 @@ First public release (MVP).
 - Not notarized (no paid Apple Developer ID yet): macOS asks you to allow the app once, and may ask for Automation permission again after an update.
 - Now Playing supports only Spotify and Apple Music (not browsers or other players).
 
-[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/kitkas1412/thenotch/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/kitkas1412/thenotch/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/kitkas1412/thenotch/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/kitkas1412/thenotch/compare/v0.5.0...v0.5.1
