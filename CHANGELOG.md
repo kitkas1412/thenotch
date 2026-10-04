@@ -6,6 +6,8 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-04
+
 ### Changed
 
 - Checks for updates once a day from the first launch, instead of asking on the second launch whether to. Turn it off in Settings › Updates; if you already chose there or in that prompt, your choice is kept.
@@ -90,7 +92,8 @@ First public release (MVP).
 - Not notarized (no paid Apple Developer ID yet): macOS asks you to allow the app once, and may ask for Automation permission again after an update.
 - Now Playing supports only Spotify and Apple Music (not browsers or other players).
 
-[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/kitkas1412/thenotch/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/kitkas1412/thenotch/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/kitkas1412/thenotch/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/kitkas1412/thenotch/compare/v0.3.0...v0.3.1
