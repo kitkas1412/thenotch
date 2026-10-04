@@ -5,6 +5,7 @@
 
 import AppKit
 import CoreGraphics
+import os
 
 /// Intercepts the volume and brightness keys with a Quartz event tap, so
 /// a handler can act on them instead of macOS (and its overlay). Needs
@@ -104,7 +105,11 @@ final class MediaKeyTap: @unchecked Sendable {
         let passThrough = Unmanaged.passUnretained(event)
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
-            // macOS turns a slow tap off; turn it back on.
+            // macOS turns a slow tap off; turn it back on. A timeout means
+            // key presses waited on us: worth knowing.
+            if type == .tapDisabledByTimeout {
+                Log.hud.error("Key tap timed out; macOS turned it off")
+            }
             if let tap = lock.withLock({ tap }) {
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
