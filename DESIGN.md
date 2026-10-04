@@ -193,7 +193,7 @@ The content transition is opacity plus a 0.9 scale from the top. Under Reduce Mo
 | `IslandDropZone(symbol:title:onDrop:)` | Dashed target for dragged files that fills while targeted. It only reports its frame (`IslandDropTarget`); `IslandView` takes the drop and hands the loaded files to the zone under the pointer. Never put `onDrop` inside the island: AppKit misplaces those views inside its clip shape, and drops miss them. |
 | `IslandProgressBar(fraction:)` | Determinate capsule progress, hidden from VoiceOver (the caller labels the value). |
 | `.islandContentMargins()` | The standard expanded margins. |
-| Module tabs (`IslandView`) | One `.islandIcon` per module with content (`ModuleKind.symbol`), in the band left of the notch, aligned with the content margin. They appear only when two or more modules have content (`IslandState.showsTabs`), never while files are dragged in. The shown module's tab is filled; the choice lasts until the island closes. |
+| Module tabs (`IslandView`) | One `.islandIcon` per module with content (`ModuleKind.symbol`), in the band left of the notch, aligned with the content margin. They appear only when two or more modules have content (`IslandState.showsTabs`), never while files are dragged in. The shown module's tab is filled; the choice lasts until the island closes. Switching tabs slides the content toward the chosen tab's side (`ModulePager`: pages side by side, scrolled with the open spring; hidden pages take no pointer or VoiceOver); under Reduce Motion it cross-fades. |
 
 ## Checklist for a new module
 

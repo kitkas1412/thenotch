@@ -32,11 +32,9 @@ struct IslandView: View {
 
             if expanded {
                 expandedContent
-                    // Leave room for the notch at the top, and keep out of
-                    // the flares: the island's visible sides are inset by
-                    // them, and margins are measured from what's visible.
+                    // Leave room for the notch at the top. (Each page keeps
+                    // out of the flares itself: `ModulePage`.)
                     .padding(.top, state.notchSize.height + IslandStyle.Spacing.content)
-                    .padding(.horizontal, IslandStyle.Radius.islandFlare)
                     // Always laid out at the open size, so it doesn't reflow
                     // while the island grows or shrinks around it.
                     .frame(width: state.expandedSize.width, height: state.expandedSize.height, alignment: .top)
@@ -106,12 +104,63 @@ struct IslandView: View {
 
     @ViewBuilder
     private var expandedContent: some View {
-        if let module = state.expandedModule {
-            module.expandedView()
+        let tabs = state.showsTabs ? state.tabModules : []
+        if !reduceMotion, let shown = state.expandedModule,
+           let index = tabs.firstIndex(where: { $0.id == shown.id }) {
+            ModulePager(modules: tabs, index: index)
+        } else if let module = state.expandedModule {
+            ModulePage(module: module)
+                // Reduce Motion, or no tabs: a new module fades in.
+                .id(module.id)
+                .transition(.opacity)
         } else {
             // Every module is switched off.
-            IslandEmptyState(title: "No modules are on", message: "Turn one on in thenotch Settings.")
+            ModulePage {
+                IslandEmptyState(title: "No modules are on", message: "Turn one on in thenotch Settings.")
+            }
         }
+    }
+}
+
+/// One module's content, the island's full width, kept out of the flares:
+/// the island's visible sides are inset by them, and margins are measured
+/// from what's visible.
+private struct ModulePage<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+            .padding(.horizontal, IslandStyle.Radius.islandFlare)
+            .frame(width: IslandState.expandedWidth, alignment: .top)
+    }
+}
+
+extension ModulePage where Content == AnyView {
+    init(module: any IslandModule) {
+        self.init { module.expandedView() }
+    }
+}
+
+/// The tabs' modules side by side, scrolled to the shown one: switching
+/// tabs slides the content over, toward the tab's side (HIG Motion: motion
+/// that shows where content comes from). The island's clip shape hides the
+/// other pages; they don't take the pointer or VoiceOver. Pages keep their
+/// state (e.g. the shelf's selection) while tabs switch.
+private struct ModulePager: View {
+    let modules: [any IslandModule]
+    let index: Int
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(Array(modules.enumerated()), id: \.element.id) { offset, module in
+                let isShown = offset == index
+                ModulePage(module: module)
+                    .allowsHitTesting(isShown)
+                    .accessibilityHidden(!isShown)
+            }
+        }
+        .offset(x: -CGFloat(index) * IslandState.expandedWidth)
+        .frame(width: IslandState.expandedWidth, alignment: .leading)
     }
 }
 
