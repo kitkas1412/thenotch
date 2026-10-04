@@ -6,6 +6,11 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Smaller download: the app is built without debugging symbols (the update zip is 1.7 MB instead of 2.1 MB).
+- Volume & Brightness: typing in other apps never waits on thenotch. The keys are now handled on their own thread instead of alongside the island.
+
 ## [0.5.0] - 2026-10-04
 
 ### Added

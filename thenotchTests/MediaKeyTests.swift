@@ -3,6 +3,7 @@
 //  thenotchTests
 //
 
+import CoreGraphics
 import Testing
 @testable import thenotch
 
@@ -48,5 +49,15 @@ struct MediaKeyTests {
     @Test func stepsStayInRange() {
         #expect(MediaKey.step(1, up: true, fine: false) == 1)
         #expect(MediaKey.step(0, up: false, fine: false) == 0)
+    }
+}
+
+struct HUDKeysTests {
+    @Test func optionAloneIsLeftToMacOS() {
+        // Option with a volume or brightness key opens its settings pane.
+        let press = MediaKey.Press(key: .volumeUp, isDown: true, isRepeat: false)
+        let result = HUDKeys.handle(press, flags: .maskAlternate)
+        #expect(!result.isHandled)
+        #expect(result.shown == nil)
     }
 }
