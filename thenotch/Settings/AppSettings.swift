@@ -13,6 +13,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
     case battery
     case shelf
     case hud
+    case bluetooth
 
     var id: String { rawValue }
 
@@ -22,6 +23,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .battery: "Battery"
         case .shelf: "Shelf"
         case .hud: "Volume & Brightness"
+        case .bluetooth: "Bluetooth"
         }
     }
 
@@ -32,6 +34,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .battery: "battery.100percent"
         case .shelf: "tray.full.fill"
         case .hud: "speaker.wave.2.fill"
+        case .bluetooth: "airpods"
         }
     }
 
@@ -41,13 +44,15 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .battery: "Shows the battery when you plug in, unplug, or run low."
         case .shelf: "Drag files onto the notch to keep them at hand."
         case .hud: "Shows volume and brightness at the notch instead of the macOS overlay."
+        case .bluetooth: "Shows AirPods and other Bluetooth devices, with their battery, when they connect."
         }
     }
 
     /// Whether the module is on until the user decides. Volume &
-    /// Brightness needs Accessibility access, asked for when it's turned on.
+    /// Brightness needs Accessibility access and Bluetooth needs Bluetooth
+    /// access, asked for when they're turned on.
     var isOnByDefault: Bool {
-        self != .hud
+        self != .hud && self != .bluetooth
     }
 
     @MainActor
@@ -57,6 +62,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .battery: BatteryModule(activities: activities)
         case .shelf: ShelfModule(activities: activities, settings: settings)
         case .hud: HUDModule(activities: activities)
+        case .bluetooth: BluetoothModule(activities: activities)
         }
     }
 }
