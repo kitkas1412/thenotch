@@ -39,6 +39,15 @@ final class IslandController {
     private var pendingDragEnd: Task<Void, Never>?
     /// Keeps the island open while it shrinks under the pointer.
     private var shrinkGrace = HoverPolicy.ShrinkGrace()
+    /// The island opened by itself for an activity (`LiveActivity.presents`).
+    private var presentation: Presentation?
+
+    private struct Presentation {
+        /// Closes the island when the activity ends, unless the pointer
+        /// came over it: from then on, hovering decides.
+        var closeTask: Task<Void, Never>
+        var hasPointerEntered = false
+    }
 
     /// How long the island stays a drop target after the mouse button is
     /// released: our global monitor sees the mouse-up before the drop
@@ -73,6 +82,9 @@ final class IslandController {
         }
         state.onDragOutBegan = { [weak self] in
             self?.dragOutBegan()
+        }
+        state.activities.onPresent = { [weak self] activity in
+            self?.present(activity)
         }
 
         observeMenus()
@@ -218,6 +230,15 @@ final class IslandController {
         // Dragging a file out of the island, or a menu is open: stay open
         // until it's done.
         if state.isDraggingOut || isTrackingMenu { return }
+        // Opened by itself: the pointer elsewhere doesn't close it, the end
+        // of the activity does — until the pointer comes over it.
+        if presentation != nil, state.isExpanded {
+            if HoverPolicy.exitRect(notch: notch, expandedSize: state.expandedSize).contains(NSEvent.mouseLocation) {
+                presentation?.hasPointerEntered = true
+            } else if presentation?.hasPointerEntered == false {
+                return
+            }
+        }
         let action = HoverPolicy.action(
             isExpanded: state.isExpanded,
             pointer: NSEvent.mouseLocation,
@@ -386,7 +407,38 @@ final class IslandController {
         state.expandedModule?.islandDidExpand()
     }
 
+    /// Opens the island on the activity's module until it expires. Doesn't
+    /// take over an island the user opened, a drag or an open menu, nor open
+    /// while nobody can see it.
+    private func present(_ activity: LiveActivity) {
+        guard state.ambient.isVisible, !state.isDraggingFiles, !state.isDraggingOut, !isTrackingMenu else { return }
+        if state.isExpanded {
+            guard presentation != nil else { return }
+            state.select(activity.moduleID)
+        } else {
+            open(pinning: activity.moduleID)
+            guard state.isExpanded else { return }
+        }
+        let hasPointerEntered = presentation?.hasPointerEntered ?? false
+        presentation?.closeTask.cancel()
+        let duration = max(activity.expiresAt?.timeIntervalSinceNow ?? 0, 1)
+        let closeTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(duration))
+            guard let self, !Task.isCancelled else { return }
+            let hovered = self.presentation?.hasPointerEntered ?? false
+            self.presentation = nil
+            if hovered {
+                self.mouseMoved()
+            } else {
+                self.close(animated: true)
+            }
+        }
+        presentation = Presentation(closeTask: closeTask, hasPointerEntered: hasPointerEntered)
+    }
+
     private func close(animated: Bool) {
+        presentation?.closeTask.cancel()
+        presentation = nil
         cancelPendingOpen()
         guard state.isExpanded else { return }
         if animated {

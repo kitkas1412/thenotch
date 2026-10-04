@@ -2,7 +2,7 @@
 
 A free, open-source macOS app that turns the MacBook notch into an interactive "Dynamic Island", inspired by [DynamicLake](https://dynamiclake.com).
 
-> **Status:** v0.1 — first public release (MVP). Expect rough edges; [bug reports](https://github.com/kitkas1412/thenotch/issues) are welcome.
+> **Status:** early releases. Expect rough edges; [bug reports](https://github.com/kitkas1412/thenotch/issues) are welcome.
 
 ## Features
 
@@ -11,6 +11,7 @@ A free, open-source macOS app that turns the MacBook notch into an interactive "
 - **Battery** — a short peek when you plug in or unplug the charger, or the battery drops to 20% / 10%.
 - **Volume & Brightness** (off until you turn it on) — the volume and brightness keys show a small level bar beside the notch instead of the macOS overlay.
 - **Bluetooth** (off until you turn it on) — AirPods and other Bluetooth devices peek beside the notch when they connect or the sound switches to them, with their battery (each AirPod and the case when you open the island).
+- **Notifications** (off until you turn it on) — notifications show at the notch instead of the macOS banners: the island opens for a few seconds with the app, title and text (move the pointer onto it to keep it open). Click one to open it. Notifications still go to Notification Center; persistent banners stay as they are.
 - **Claude Code** (off until you turn it on) — a sparkle beside the notch while Claude Code works, an orange hand while it waits for your permission, a check mark when a reply is done; open the island for every session and what it's doing.
 - **Settings** — turn modules on or off, launch at login.
 - Works on Macs without a notch too: a simulated notch appears centered under the menu bar.
@@ -41,7 +42,7 @@ To verify a download, compare it with `SHA256SUMS.txt` from the release: `shasum
 ### Permissions
 
 - **Automation (Spotify / Music)** — requested the first time you use a playback control. If you decline, the track is still shown but the controls are replaced by a link to System Settings › Privacy & Security › Automation.
-- **Accessibility** — only for Volume & Brightness, requested when you turn it on in Settings. It lets thenotch take the volume and brightness keys before macOS does. Without it, the keys work as usual with the macOS overlay. Brightness is set through a private macOS framework (there is no public one); if a macOS update changes it, the brightness keys go back to macOS.
+- **Accessibility** — only for Volume & Brightness and Notifications, requested when you turn one on in Settings. It lets thenotch take the volume and brightness keys before macOS does, and read Notification Center's banners and move them out of sight. Without it, the keys and banners work as usual. thenotch reads only what a banner shows (with Show previews off, not the text), keeps the last few notifications in memory until you've seen them, and never saves or sends them. Brightness is set through a private macOS framework (there is no public one); if a macOS update changes it, the brightness keys go back to macOS.
 - **Bluetooth** — only for the Bluetooth module, requested when you turn it on. It lets thenotch see devices connect and read their battery; nothing is sent anywhere. AirPods' battery levels come from macOS's Bluetooth framework through properties that aren't public API; if a macOS update removes them, devices still show, without a level.
 - **Claude Code hooks** — not a macOS permission: turning the Claude Code module on adds hooks to `~/.claude/settings.json` (the original is kept as `settings.json.thenotch-backup`), and turning it off removes them. Each hook sends the event to thenotch over a socket on your Mac; thenotch keeps the project folder, the tool name, the notification and the questions Claude asks you (to show them in the island), never your prompts, Claude's replies or commands, and sends nothing anywhere.
 - Nothing else. thenotch doesn't need Screen Recording or Full Disk Access.
@@ -106,7 +107,7 @@ Sparkle installs only updates signed with the private key whose public half is `
 thenotch/
 ├── App/        # Entry point (menu bar extra, Settings scene) and AppDelegate
 ├── Core/       # Island window, geometry, state, hover logic, module system
-├── Modules/    # Features: NowPlaying, Battery, Shelf, HUD, Bluetooth
+├── Modules/    # Features: NowPlaying, Battery, Shelf, HUD, Bluetooth, Notifications, ClaudeCode
 └── Settings/   # Preferences and the Settings window
 ```
 

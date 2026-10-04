@@ -6,6 +6,10 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Notifications: notifications show at the notch instead of the macOS banners. A new one opens the island for a few seconds with the latest ones (app, time, title and text); move the pointer onto it to keep it open, and click one to open it, as with the banner. If the island is already open, the notification waits in its tab. Only what the banner would show is shown: with Show previews off, the text stays hidden. Notifications still go to Notification Center, and persistent banners are left to macOS. Turn it on in Settings › Modules; it needs Accessibility access.
+
 ## [0.6.0] - 2026-10-04
 
 ### Added

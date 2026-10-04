@@ -14,6 +14,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
     case shelf
     case hud
     case bluetooth
+    case notifications
     case claudeCode
 
     var id: String { rawValue }
@@ -25,6 +26,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .shelf: "Shelf"
         case .hud: "Volume & Brightness"
         case .bluetooth: "Bluetooth"
+        case .notifications: "Notifications"
         case .claudeCode: "Claude Code"
         }
     }
@@ -37,6 +39,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .shelf: "tray.full.fill"
         case .hud: "speaker.wave.2.fill"
         case .bluetooth: "airpods"
+        case .notifications: "bell.badge.fill"
         case .claudeCode: "sparkle"
         }
     }
@@ -48,16 +51,22 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .shelf: "Drag files onto the notch to keep them at hand."
         case .hud: "Shows volume and brightness at the notch instead of the macOS overlay."
         case .bluetooth: "Shows AirPods and other Bluetooth devices, with their battery, when they connect."
+        case .notifications: "Shows notifications at the notch instead of the macOS banners."
         case .claudeCode: "Shows when Claude Code is working, done, or waiting for your permission."
         }
     }
 
     /// Whether the module is on until the user decides. Volume &
-    /// Brightness needs Accessibility access and Bluetooth needs Bluetooth
-    /// access, asked for when they're turned on; Claude Code adds hooks to
-    /// Claude Code's settings.
+    /// Brightness and Notifications need Accessibility access and Bluetooth
+    /// needs Bluetooth access, asked for when they're turned on; Claude Code
+    /// adds hooks to Claude Code's settings.
     var isOnByDefault: Bool {
-        self != .hud && self != .bluetooth && self != .claudeCode
+        self != .hud && self != .bluetooth && self != .notifications && self != .claudeCode
+    }
+
+    /// Whether the module needs Accessibility access.
+    var needsAccessibility: Bool {
+        self == .hud || self == .notifications
     }
 
     @MainActor
@@ -68,6 +77,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .shelf: ShelfModule(activities: activities, settings: settings)
         case .hud: HUDModule(activities: activities)
         case .bluetooth: BluetoothModule(activities: activities)
+        case .notifications: NotificationsModule(activities: activities)
         case .claudeCode: ClaudeCodeModule(activities: activities)
         }
     }
