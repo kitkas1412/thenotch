@@ -6,6 +6,8 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-04
+
 ### Added
 
 - Notifications: notifications show at the notch instead of the macOS banners. A new one opens the island for a few seconds with the latest ones (app, time, title and text); move the pointer onto it to keep it open, and click one to open it, as with the banner. If the island is already open, the notification waits in its tab. Only what the banner would show is shown: with Show previews off, the text stays hidden. Notifications still go to Notification Center, and persistent banners are left to macOS. Turn it on in Settings › Modules; it needs Accessibility access.
@@ -121,7 +123,8 @@ First public release (MVP).
 - Not notarized (no paid Apple Developer ID yet): macOS asks you to allow the app once, and may ask for Automation permission again after an update.
 - Now Playing supports only Spotify and Apple Music (not browsers or other players).
 
-[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/kitkas1412/thenotch/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/kitkas1412/thenotch/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/kitkas1412/thenotch/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/kitkas1412/thenotch/compare/v0.4.1...v0.5.0
