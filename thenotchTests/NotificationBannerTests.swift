@@ -137,3 +137,54 @@ struct NotificationListLayoutTests {
     }
 }
 
+struct CallAlertTests {
+    static let accept = "Name:Accept\nTarget:0x0\nSelector:(null)"
+    static let decline = "Name:Decline\nTarget:0x0\nSelector:(null)"
+
+    static func alert(id: String = "C1", description: String? = "FaceTime, Anna, FaceTime Audio", actions: [String] = [accept, decline, "AXPress"], title: String? = "Anna", subtitle: String? = "FaceTime Audio") -> AXNode {
+        var texts: [AXNode] = []
+        if let title { texts.append(AXNode(identifier: "title", value: title)) }
+        if let subtitle { texts.append(AXNode(identifier: "subtitle", value: subtitle)) }
+        return AXNode(subrole: NotificationBanners.alertSubrole, identifier: id, description: description, actions: actions, children: texts)
+    }
+
+    @Test func readsACall() throws {
+        let window = NotificationBannerTests.window([Self.alert()])
+        #expect(CallAlerts.call(in: window) == IncomingCall(id: "C1", appName: "FaceTime", caller: "Anna", detail: "FaceTime Audio"))
+        // Still a persistent alert, not a banner window.
+        #expect(!NotificationBanners.isBannerWindow(window))
+    }
+
+    @Test func findsTheActionsToAnswer() {
+        let alert = Self.alert()
+        #expect(CallAlerts.action(.accept, in: alert) == Self.accept)
+        #expect(CallAlerts.action(.decline, in: alert) == Self.decline)
+    }
+
+    /// A reminder or other persistent alert has no answer actions.
+    @Test func otherAlertsAreNotCalls() {
+        let reminder = Self.alert(actions: ["Name:Complete\nTarget:0x0\nSelector:(null)", "AXPress"])
+        #expect(CallAlerts.call(in: NotificationBannerTests.window([reminder])) == nil)
+        let acceptOnly = Self.alert(actions: [Self.accept])
+        #expect(CallAlerts.call(in: NotificationBannerTests.window([acceptOnly])) == nil)
+    }
+
+    @Test func aCallNeedsItsCaller() {
+        #expect(CallAlerts.call(in: NotificationBannerTests.window([Self.alert(title: nil)])) == nil)
+    }
+
+    @Test func actionNames() {
+        #expect(CallAlerts.actionName(Self.accept) == "Accept")
+        #expect(CallAlerts.actionName("Name:Chấp nhận") == "Chấp nhận")
+        #expect(CallAlerts.actionName("AXPress") == nil)
+        #expect(CallAlerts.actionName("Name:") == nil)
+    }
+}
+
+@MainActor
+struct IncomingCallLayoutTests {
+    @Test func theCallFitsThePanel() {
+        let island = IncomingCallView.contentHeight + 38 + IslandStyle.Spacing.content + IslandState.tabRowHeight
+        #expect(island <= IslandController.panelSize.height)
+    }
+}

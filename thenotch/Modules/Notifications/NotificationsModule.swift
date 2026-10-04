@@ -14,6 +14,9 @@ import SwiftUI
 /// (`NotificationBannerWatcher`); without access, banners are left to
 /// macOS. Shows only what the banner shows, so macOS's Show previews and
 /// Focus settings apply.
+///
+/// A call ringing (FaceTime, or an iPhone call through Continuity) opens
+/// the island until it stops, with buttons to accept or decline it.
 @MainActor
 final class NotificationsModule: IslandModule {
     let id = ModuleKind.notifications.id
@@ -23,6 +26,13 @@ final class NotificationsModule: IslandModule {
     /// How long a new notification keeps the island open: long enough to
     /// read a line, short enough not to stay in the way.
     static let peekDuration: TimeInterval = 2
+    /// A ringing call outranks everything else: it can't wait.
+    static let callPriority = 80
+
+    private var callActivityID: String { "\(id).call" }
+    #if DEBUG
+    private static let fakeCallID = "debug.fakeCall"
+    #endif
 
     private let activities: ActivityCenter
     private let watcher = NotificationBannerWatcher()
@@ -39,35 +49,63 @@ final class NotificationsModule: IslandModule {
         watcher.onNotification = { [weak self] notification in
             self?.received(notification)
         }
+        watcher.onCall = { [weak self] call in
+            self?.ringing(call)
+        }
+        watcher.onCallEnded = { [weak self] id in
+            self?.callEnded(id)
+        }
         watcher.start()
+        #if DEBUG
+        // Launch with `-debug.fakeCall '<true/>'` to see the call UI
+        // without a call; its buttons only end it.
+        if UserDefaults.standard.bool(forKey: "debug.fakeCall") {
+            ringing(IncomingCall(id: Self.fakeCallID, appName: "FaceTime", caller: "Anna Nguyen", detail: "FaceTime Audio"))
+        }
+        #endif
     }
 
     func stop() {
         watcher.stop()
         watcher.onNotification = nil
+        watcher.onCall = nil
+        watcher.onCallEnded = nil
         model.recent.removeAll()
+        model.call = nil
         activities.remove(id: id)
+        activities.remove(id: callActivityID)
     }
 
     func compactLeading() -> AnyView {
-        AnyView(NotificationAppIcon(appName: model.recent.items.first?.appName, size: IslandStyle.Size.compactContent))
+        AnyView(NotificationAppIcon(appName: model.call?.appName ?? model.recent.items.first?.appName, size: IslandStyle.Size.compactContent))
     }
 
     func compactTrailing() -> AnyView {
-        AnyView(NotificationCountView(model: model))
+        if model.call != nil {
+            return AnyView(CallRingingSymbol())
+        }
+        return AnyView(NotificationCountView(model: model))
     }
 
     func expandedView() -> AnyView {
-        AnyView(NotificationListView(model: model) { [weak self] notification in
+        if let call = model.call {
+            return AnyView(IncomingCallView(call: call) { [weak self] answer in
+                self?.answer(call, answer)
+            })
+        }
+        return AnyView(NotificationListView(model: model) { [weak self] notification in
             self?.open(notification)
         })
     }
 
-    /// Notifications not seen in the open island yet.
-    var hasExpandedContent: Bool { !model.recent.items.isEmpty }
+    /// A ringing call, or notifications not seen in the open island yet.
+    var hasExpandedContent: Bool { model.call != nil || !model.recent.items.isEmpty }
 
     var expandedContentHeight: CGFloat {
-        NotificationListView.contentHeight(rows: model.recent.items.count)
+        if model.call != nil {
+            return IncomingCallView.contentHeight
+        }
+        return NotificationListView.contentHeight(rows: model.recent.items.count)
     }
 
     func islandDidExpand() {
@@ -93,6 +131,38 @@ final class NotificationsModule: IslandModule {
         ))
     }
 
+    private func ringing(_ call: IncomingCall) {
+        model.call = call
+        activities.publish(LiveActivity(
+            id: callActivityID,
+            moduleID: id,
+            priority: Self.callPriority,
+            presents: true
+        ))
+    }
+
+    private func callEnded(_ callID: String) {
+        guard model.call?.id == callID else { return }
+        model.call = nil
+        activities.remove(id: callActivityID)
+    }
+
+    /// Answers as the call alert's buttons would. If that fails (the call
+    /// just ended, or the alert changed), accepting opens the app instead.
+    private func answer(_ call: IncomingCall, _ answer: CallAlerts.Answer) {
+        #if DEBUG
+        if call.id == Self.fakeCallID {
+            callEnded(call.id)
+            return
+        }
+        #endif
+        if watcher.answer(call.id, answer) {
+            callEnded(call.id)
+        } else if answer == .accept, let url = NotificationApps.url(named: call.appName) {
+            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+        }
+    }
+
     /// Clicks the banner while it's still there (the app opens on that
     /// notification), else opens the app.
     private func open(_ notification: BannerNotification) {
@@ -107,6 +177,7 @@ final class NotificationsModule: IslandModule {
 @Observable
 final class NotificationsModel {
     var recent = RecentNotifications()
+    var call: IncomingCall?
 }
 
 // MARK: - Views
@@ -230,5 +301,88 @@ private struct NotificationRow: View {
     private var detail: String? {
         let parts = [notification.subtitle, notification.body].compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " — ")
+    }
+}
+
+/// Right wing while a call rings: a phone, pulsing (not under Reduce
+/// Motion, or when nobody can see it).
+private struct CallRingingSymbol: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.allowsAmbientAnimation) private var allowsAmbientAnimation
+
+    var body: some View {
+        Image(systemName: "phone.fill")
+            .font(.islandSymbol(.compact, weight: .semibold))
+            .foregroundStyle(IslandSignal.callAccept)
+            .symbolEffect(.pulse, isActive: !reduceMotion && allowsAmbientAnimation)
+            .accessibilityLabel("Incoming call")
+    }
+}
+
+/// The open island while a call rings: who calls, then Decline and Accept,
+/// in the order and colors of the macOS call alert.
+struct IncomingCallView: View {
+    let call: IncomingCall
+    var onAnswer: (CallAlerts.Answer) -> Void
+
+    static let rowHeight = IslandStyle.Size.playerControl
+    static var contentHeight: CGFloat { rowHeight + IslandStyle.Spacing.content }
+
+    var body: some View {
+        HStack(spacing: IslandStyle.Spacing.m) {
+            NotificationAppIcon(appName: call.appName, size: IslandStyle.Size.playerControl)
+            VStack(alignment: .leading, spacing: IslandStyle.Spacing.xxs) {
+                Text(call.caller)
+                    .font(.islandHeadline)
+                    .foregroundStyle(.primary)
+                Text(call.detail ?? call.appName)
+                    .font(.islandCaption)
+                    .foregroundStyle(.secondary)
+            }
+            .lineLimit(1)
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: IslandStyle.Spacing.s)
+            HStack(spacing: IslandStyle.Spacing.m) {
+                Button { onAnswer(.decline) } label: {
+                    Label("Decline", systemImage: "phone.down.fill")
+                }
+                .buttonStyle(CallButtonStyle(color: IslandSignal.callDecline))
+                Button { onAnswer(.accept) } label: {
+                    Label("Accept", systemImage: "phone.fill")
+                }
+                .buttonStyle(CallButtonStyle(color: IslandSignal.callAccept))
+            }
+        }
+        .frame(height: Self.rowHeight)
+        .islandContentMargins()
+    }
+}
+
+/// A round, filled call button; its symbol says what it does, its color
+/// repeats it.
+private struct CallButtonStyle: ButtonStyle {
+    let color: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        CallButtonBody(configuration: configuration, color: color)
+    }
+}
+
+private struct CallButtonBody: View {
+    let configuration: ButtonStyle.Configuration
+    let color: Color
+
+    @State private var isHovered = false
+
+    var body: some View {
+        configuration.label
+            .labelStyle(.iconOnly)
+            .font(.islandSymbol(.control, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: IslandStyle.Size.playerControl, height: IslandStyle.Size.playerControl)
+            .background(Circle().fill(color))
+            .brightness(configuration.isPressed ? -0.15 : isHovered ? 0.08 : 0)
+            .contentShape(Circle())
+            .onHover { isHovered = $0 }
     }
 }

@@ -15,6 +15,10 @@ import os
 /// it has slid in. Moving its window takes effect at once. Each banner gets
 /// a new window, so nothing needs restoring when this stops; banners show
 /// as usual again.
+///
+/// Call alerts (`CallAlerts`) are moved off screen too while they ring,
+/// and answered through their actions. Their window is put back when this
+/// stops, or if it's still there once it no longer holds the call.
 @MainActor
 final class NotificationBannerWatcher {
     static let notificationCenterID = "com.apple.notificationcenterui"
@@ -25,8 +29,15 @@ final class NotificationBannerWatcher {
     private static let messagingTimeout: Float = 0.25
     /// Banner elements kept for `press(_:)`; a banner lasts a few seconds.
     private static let keptElements = 8
+    /// How often a ringing call's alert is checked: it ends without a
+    /// notification when the caller hangs up or the call is answered
+    /// elsewhere.
+    private static let ringingCheck: Duration = .milliseconds(500)
 
     var onNotification: ((BannerNotification) -> Void)?
+    var onCall: ((IncomingCall) -> Void)?
+    /// The call's id, once its alert is gone.
+    var onCallEnded: ((String) -> Void)?
 
     private var observer: AXObserver?
     private var workspaceObservers: [NSObjectProtocol] = []
@@ -34,6 +45,17 @@ final class NotificationBannerWatcher {
     private var retryTask: Task<Void, Never>?
     /// Banner elements by notification id, oldest first.
     private var bannerElements: [(id: String, element: AXUIElement)] = []
+    private var ringing: Ringing?
+
+    private struct Ringing {
+        let call: IncomingCall
+        let window: AXUIElement
+        let alert: AXUIElement
+        let actions: [CallAlerts.Answer: String]
+        /// Where macOS put the alert, to put it back.
+        let position: CGPoint?
+        var checkTask: Task<Void, Never>?
+    }
 
     var isAttached: Bool { observer != nil }
 
@@ -82,6 +104,9 @@ final class NotificationBannerWatcher {
         retryTask = nil
         detach()
         bannerElements = []
+        if let ringing {
+            endCall(ringing, restoring: true)
+        }
     }
 
     /// Clicks the banner, as if it were clicked on screen: the app opens on
@@ -89,6 +114,17 @@ final class NotificationBannerWatcher {
     func press(_ id: String) -> Bool {
         guard let element = bannerElements.last(where: { $0.id == id })?.element else { return false }
         return AXUIElementPerformAction(element, kAXPressAction as CFString) == .success
+    }
+
+    /// Answers the ringing call as its alert's button would. Fails once
+    /// the call has ended.
+    func answer(_ id: String, _ answer: CallAlerts.Answer) -> Bool {
+        guard let ringing, ringing.call.id == id, let action = ringing.actions[answer] else { return false }
+        let result = AXUIElementPerformAction(ringing.alert, action as CFString)
+        if result != .success {
+            Log.notifications.error("Couldn't answer a call: \(result.rawValue)")
+        }
+        return result == .success
     }
 
     // MARK: - Observing
@@ -141,6 +177,10 @@ final class NotificationBannerWatcher {
         guard let window = Self.window(of: element) else { return }
         var elements: [String: AXUIElement] = [:]
         let node = Self.snapshot(window, depth: NotificationBanners.snapshotDepth, banners: &elements)
+        if let call = CallAlerts.call(in: node) {
+            rang(call, in: node, element: elements[call.id], window: window)
+            return
+        }
         guard NotificationBanners.isBannerWindow(node) else { return }
         let notifications = NotificationBanners.banners(in: node, at: .now)
         hide(window)
@@ -153,6 +193,59 @@ final class NotificationBannerWatcher {
         for notification in notifications {
             onNotification?(notification)
         }
+    }
+
+    // MARK: - Calls
+
+    private func rang(_ call: IncomingCall, in tree: AXNode, element: AXUIElement?, window: AXUIElement) {
+        guard let element else { return }
+        if ringing?.call.id == call.id { return }
+        if let ringing {
+            endCall(ringing, restoring: true)
+        }
+        let alertNode = Self.find(call.id, in: tree) ?? tree
+        var actions: [CallAlerts.Answer: String] = [:]
+        actions[.accept] = CallAlerts.action(.accept, in: alertNode)
+        actions[.decline] = CallAlerts.action(.decline, in: alertNode)
+        let position = Self.position(of: window)
+        hide(window)
+        let checkTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.ringingCheck)
+                guard let self, !Task.isCancelled else { return }
+                self.checkRinging()
+            }
+        }
+        ringing = Ringing(call: call, window: window, alert: element, actions: actions, position: position == Self.offScreen ? nil : position, checkTask: checkTask)
+        Log.notifications.debug("Call from \(call.appName, privacy: .public)")
+        onCall?(call)
+    }
+
+    /// Ends the call once its alert is gone (or no longer a call).
+    private func checkRinging() {
+        guard let ringing else { return }
+        var elements: [String: AXUIElement] = [:]
+        let node = Self.snapshot(ringing.window, depth: NotificationBanners.snapshotDepth, banners: &elements)
+        guard CallAlerts.call(in: node)?.id != ringing.call.id else { return }
+        endCall(ringing, restoring: true)
+    }
+
+    private func endCall(_ ended: Ringing, restoring: Bool) {
+        ended.checkTask?.cancel()
+        ringing = nil
+        // A window that's gone ignores this.
+        if restoring, var position = ended.position, let value = AXValueCreate(.cgPoint, &position) {
+            AXUIElementSetAttributeValue(ended.window, kAXPositionAttribute as CFString, value)
+        }
+        onCallEnded?(ended.call.id)
+    }
+
+    private static func find(_ identifier: String, in node: AXNode) -> AXNode? {
+        if node.identifier == identifier { return node }
+        for child in node.children {
+            if let found = find(identifier, in: child) { return found }
+        }
+        return nil
     }
 
     private func hide(_ window: AXUIElement) {
@@ -176,16 +269,22 @@ final class NotificationBannerWatcher {
         return (value as! AXUIElement)
     }
 
-    /// Copies what `NotificationBanners` reads, and collects the banners'
-    /// elements by id.
+    /// Copies what `NotificationBanners` and `CallAlerts` read, and collects
+    /// the banners' and alerts' elements by id.
     private static func snapshot(_ element: AXUIElement, depth: Int, banners: inout [String: AXUIElement]) -> AXNode {
         var node = AXNode(
             subrole: string(kAXSubroleAttribute, of: element),
             identifier: string(kAXIdentifierAttribute, of: element)
         )
-        if node.subrole == NotificationBanners.bannerSubrole {
+        if node.subrole == NotificationBanners.bannerSubrole || node.subrole == NotificationBanners.alertSubrole {
             node.description = string(kAXDescriptionAttribute, of: element)
             if let id = node.identifier { banners[id] = element }
+        }
+        if node.subrole == NotificationBanners.alertSubrole {
+            var names: CFArray?
+            if AXUIElementCopyActionNames(element, &names) == .success {
+                node.actions = names as? [String] ?? []
+            }
         }
         if node.identifier != nil, node.subrole == nil {
             // The banner's texts (title, subtitle, body).

@@ -15,7 +15,8 @@ struct LiveActivity: Equatable, Identifiable {
     /// Removed automatically after this date; `nil` stays until removed.
     var expiresAt: Date?
     /// Opens the island on its module until it expires (a notification
-    /// arriving), instead of only showing beside the notch.
+    /// arriving) or, without expiry, until it's removed (a call ringing),
+    /// instead of only showing beside the notch.
     var presents = false
 }
 
@@ -39,6 +40,8 @@ final class ActivityCenter {
     /// Called for each published activity that `presents` (the island
     /// controller opens the island).
     @ObservationIgnored var onPresent: ((LiveActivity) -> Void)?
+    /// Called with the id of each removed (or expired) activity.
+    @ObservationIgnored var onRemove: ((String) -> Void)?
 
     /// Adds or replaces (by `id`) an activity.
     func publish(_ activity: LiveActivity) {
@@ -53,8 +56,11 @@ final class ActivityCenter {
 
     func remove(id: String) {
         expiryTasks.removeValue(forKey: id)?.cancel()
-        entries.removeValue(forKey: id)
+        let removed = entries.removeValue(forKey: id) != nil
         refresh()
+        if removed {
+            onRemove?(id)
+        }
     }
 
     /// Highest priority among unexpired activities; ties go to the most
