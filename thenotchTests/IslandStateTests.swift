@@ -173,4 +173,14 @@ struct AmbientConditionsTests {
         #expect(!AmbientConditions(isSessionInactive: true).allowsAnimation)
         #expect(!AmbientConditions(isLowPowerMode: true).allowsAnimation)
     }
+
+    /// The island opens by itself (a notification) in Low Power Mode too,
+    /// but not while nobody can see it.
+    @Test func visibleUnlessNobodyCanSeeIt() {
+        #expect(AmbientConditions().isVisible)
+        #expect(AmbientConditions(isLowPowerMode: true).isVisible)
+        #expect(!AmbientConditions(isDisplayAsleep: true).isVisible)
+        #expect(!AmbientConditions(isScreenLocked: true).isVisible)
+        #expect(!AmbientConditions(isSessionInactive: true).isVisible)
+    }
 }

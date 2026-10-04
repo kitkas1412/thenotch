@@ -17,6 +17,8 @@ enum Log {
     static let hud = Logger(subsystem: subsystem, category: "hud")
     /// Bluetooth devices connecting.
     static let bluetooth = Logger(subsystem: subsystem, category: "bluetooth")
+    /// Notification Center's banners (never their text).
+    static let notifications = Logger(subsystem: subsystem, category: "notifications")
     /// Claude Code's hooks.
     static let claude = Logger(subsystem: subsystem, category: "claude")
 }

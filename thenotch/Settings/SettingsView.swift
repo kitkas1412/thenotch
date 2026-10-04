@@ -116,7 +116,7 @@ private struct ModulesSettingsPane: View {
                         set: { enabled in
                             settings.setEnabled(kind, enabled)
                             // Ask in context, when the module is turned on.
-                            if kind == .hud && enabled {
+                            if kind.needsAccessibility && enabled {
                                 AccessibilityPermission.request()
                             }
                         }
@@ -165,6 +165,15 @@ private struct ModulesSettingsPane: View {
                     action: ("Open Privacy & Security…", { AccessibilityPermission.openSettings() })
                 )
             }
+        case .notifications:
+            if !isAccessibilityTrusted {
+                SettingsNotice(
+                    "Needs Accessibility access to read the banners. Until then, macOS shows its own.",
+                    kind: .actionNeeded,
+                    action: ("Open Privacy & Security…", { AccessibilityPermission.openSettings() })
+                )
+            }
+            SettingsNote("Shows only what the banner would: with Show previews off in System Settings › Notifications, the text stays hidden. Notifications stay in Notification Center, and persistent banners are left to macOS. Nothing is saved or sent.")
         case .bluetooth:
             if isBluetoothDenied {
                 SettingsNotice(
@@ -243,6 +252,7 @@ private extension ModuleKind {
         case .shelf: .blue
         case .hud: .gray
         case .bluetooth: .indigo
+        case .notifications: .red
         case .claudeCode: .orange
         }
     }

@@ -87,4 +87,14 @@ struct ActivityCenterTests {
         try await Task.sleep(for: .milliseconds(300))
         #expect(center.current == nil)
     }
+
+    @Test func onlyPresentingActivitiesAskToOpenTheIsland() {
+        let center = ActivityCenter()
+        var presented: [String] = []
+        center.onPresent = { presented.append($0.id) }
+        center.publish(LiveActivity(id: "peek", moduleID: "battery", priority: 50))
+        center.publish(LiveActivity(id: "note", moduleID: "notifications", priority: 55, presents: true))
+        #expect(presented == ["note"])
+        #expect(center.current?.id == "note")
+    }
 }

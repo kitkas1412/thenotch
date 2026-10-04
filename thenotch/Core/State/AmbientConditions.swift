@@ -15,6 +15,11 @@ struct AmbientConditions: Equatable {
     var isLowPowerMode = false
 
     var allowsAnimation: Bool {
-        !(isDisplayAsleep || isScreenLocked || isSessionInactive || isLowPowerMode)
+        isVisible && !isLowPowerMode
+    }
+
+    /// Someone may be looking at the island: it may open by itself.
+    var isVisible: Bool {
+        !(isDisplayAsleep || isScreenLocked || isSessionInactive)
     }
 }
