@@ -12,6 +12,9 @@ import SwiftUI
 struct NotchShape: Shape {
     var topRadius: CGFloat
     var bottomRadius: CGFloat
+    /// Leaves out the top edge, which sits against the top of the screen,
+    /// so stroking the shape draws only the island's visible border.
+    var isOpenAtTop = false
 
     /// Lets SwiftUI interpolate the radii together with the frame size.
     var animatableData: AnimatablePair<CGFloat, CGFloat> {
@@ -44,7 +47,9 @@ struct NotchShape: Shape {
             to: CGPoint(x: rect.maxX, y: rect.minY),
             control: CGPoint(x: rect.maxX - topRadius, y: rect.minY)
         )
-        p.closeSubpath()
+        if !isOpenAtTop {
+            p.closeSubpath()
+        }
         return p
     }
 }

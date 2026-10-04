@@ -18,35 +18,44 @@ enum ShelfDrag {
     /// Keeps the current drag's source alive until the drag ends.
     private static var activeSource: Source?
 
-    /// Starts dragging `item` from the current mouse-dragged event. Calls
-    /// `onEnd` with the operation the destination performed (`[]` if
-    /// cancelled). Returns false if there is no such event.
+    /// Starts dragging `items` (the shelf's stack drags them all) from the
+    /// current mouse-dragged event. Calls `onEnd` with the operation the
+    /// destination performed (`[]` if cancelled), which applies to every
+    /// file. Returns false if there is no such event.
     @discardableResult
-    static func begin(_ item: ShelfItem, onEnd: @escaping (NSDragOperation) -> Void) -> Bool {
-        guard let event = NSApp.currentEvent,
+    static func begin(_ items: [ShelfItem], onEnd: @escaping (NSDragOperation) -> Void) -> Bool {
+        guard !items.isEmpty,
+              let event = NSApp.currentEvent,
               event.type == .leftMouseDragged,
               let view = event.window?.contentView
         else { return false }
 
-        let draggingItem = NSDraggingItem(pasteboardWriter: item.url as NSURL)
-        let icon = NSWorkspace.shared.icon(forFile: item.url.path)
-        let size = CGSize(width: 48, height: 48)
-        icon.size = size
         let point = view.convert(event.locationInWindow, from: nil)
-        draggingItem.setDraggingFrame(
-            CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2, width: size.width, height: size.height),
-            contents: icon
-        )
+        let draggingItems = items.enumerated().map { index, item in
+            let draggingItem = NSDraggingItem(pasteboardWriter: item.url as NSURL)
+            let icon = NSWorkspace.shared.icon(forFile: item.url.path)
+            icon.size = iconSize
+            // Fanned out a little under the pointer, like the stack.
+            let shift = CGFloat(min(index, 2)) * fanOffset
+            draggingItem.setDraggingFrame(
+                CGRect(x: point.x - iconSize.width / 2 + shift, y: point.y - iconSize.height / 2 - shift, width: iconSize.width, height: iconSize.height),
+                contents: icon
+            )
+            return draggingItem
+        }
 
         let source = Source { operation in
             activeSource = nil
             onEnd(operation)
         }
         activeSource = source
-        view.beginDraggingSession(with: [draggingItem], event: event, source: source)
+        view.beginDraggingSession(with: draggingItems, event: event, source: source)
             .animatesToStartingPositionsOnCancelOrFail = true
         return true
     }
+
+    private static let iconSize = CGSize(width: 48, height: 48)
+    private static let fanOffset: CGFloat = 4
 
     /// How a drag out of the shelf ended.
     enum Outcome: Equatable {

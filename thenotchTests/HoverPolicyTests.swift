@@ -100,4 +100,45 @@ struct HoverPolicyTests {
             #expect(exit.contains(entry))
         }
     }
+
+    @Test func dragKeepsANarrowIslandOpenAroundWideWings() {
+        let wings = CGSize(width: notch.width + 200, height: notch.height)
+        let square = CGSize(width: 256, height: 232)
+        // Beside the wings, outside the narrow island: still where a drag opens it.
+        let pointer = CGPoint(x: 662 - 120, y: 970)
+        #expect(HoverPolicy.action(isExpanded: false, isDragging: true, pointer: pointer, notch: notch, compactSize: wings, expandedSize: square) == .open)
+        #expect(HoverPolicy.action(isExpanded: true, isDragging: true, pointer: pointer, notch: notch, compactSize: wings, expandedSize: square) == .none)
+        #expect(HoverPolicy.action(isExpanded: true, pointer: pointer, notch: notch, compactSize: wings, expandedSize: square) == .close)
+    }
+
+    // MARK: Shrinking under the pointer
+
+    @Test func shrinkingKeepsTheOldRegionUntilThePointerIsBack() {
+        var grace = HoverPolicy.ShrinkGrace()
+        let wide = CGSize(width: 520, height: 160)
+        let square = CGSize(width: 256, height: 232)
+        #expect(grace.exitSize(for: wide) { _ in true } == wide)
+        // Shrunk with the pointer outside the square: the wide region counts too.
+        #expect(grace.exitSize(for: square) { _ in false } == CGSize(width: 520, height: 232))
+        #expect(grace.exitSize(for: square) { _ in false } == CGSize(width: 520, height: 232))
+        // Back over the island: only the square counts.
+        #expect(grace.exitSize(for: square) { _ in true } == square)
+        #expect(grace.exitSize(for: square) { _ in false } == square)
+    }
+
+    @Test func growingNeedsNoGrace() {
+        var grace = HoverPolicy.ShrinkGrace()
+        let square = CGSize(width: 256, height: 232)
+        let wide = CGSize(width: 520, height: 232)
+        _ = grace.exitSize(for: square) { _ in true }
+        #expect(grace.exitSize(for: wide) { _ in false } == wide)
+    }
+
+    @Test func graceEndsWhenTheIslandCloses() {
+        var grace = HoverPolicy.ShrinkGrace()
+        _ = grace.exitSize(for: CGSize(width: 520, height: 160)) { _ in true }
+        grace.reset()
+        let square = CGSize(width: 256, height: 232)
+        #expect(grace.exitSize(for: square) { _ in false } == square)
+    }
 }

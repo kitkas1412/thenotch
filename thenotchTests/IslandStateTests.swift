@@ -14,11 +14,13 @@ private final class FakeModule: IslandModule {
     let id: String
     var hasExpandedContent: Bool
     var expandedContentHeight: CGFloat
+    var expandedWidth: CGFloat
 
-    init(_ id: String, content: Bool = false, height: CGFloat = IslandState.defaultContentHeight) {
+    init(_ id: String, content: Bool = false, height: CGFloat = IslandState.defaultContentHeight, width: CGFloat = IslandState.expandedWidth) {
         self.id = id
         hasExpandedContent = content
         expandedContentHeight = height
+        expandedWidth = width
     }
 
     func start() {}
@@ -121,6 +123,45 @@ struct IslandStateTests {
         state.notchSize = CGSize(width: 190, height: 38)
         state.modules = [FakeModule("player", content: true, height: 156)]
         #expect(state.expandedSize.height <= IslandController.panelSize.height)
+    }
+
+    @Test func expandedWidthFollowsTheShownModule() {
+        let stack = FakeModule("stack", content: true, width: 256)
+        state.modules = [stack]
+        #expect(state.expandedSize.width == 256)
+    }
+
+    @Test func tabsSitBesideTheNotchOnAWideIsland() {
+        music.hasExpandedContent = true
+        shelf.hasExpandedContent = true
+        state.select("music")
+        #expect(state.tabsBesideNotch)
+        #expect(state.expandedContentTop == 32 + IslandStyle.Spacing.content)
+    }
+
+    @Test func tabsTakeARowUnderTheNotchOnANarrowIsland() {
+        let player = FakeModule("player", content: true)
+        let stack = FakeModule("stack", content: true, height: 100, width: 256)
+        state.modules = [player, stack]
+        state.select("stack")
+        #expect(!state.tabsBesideNotch)
+        let top = 32 + IslandStyle.Spacing.content + IslandState.tabRowHeight
+        #expect(state.expandedContentTop == top)
+        #expect(state.expandedSize == CGSize(width: 256, height: top + 100))
+        // No row without tabs.
+        player.hasExpandedContent = false
+        #expect(state.expandedContentTop == 32 + IslandStyle.Spacing.content)
+    }
+
+    /// The shelf's stack, with its tab row, fits the panel under a tall notch.
+    @Test func shelfStackWithTabsFitsThePanel() {
+        state.notchSize = CGSize(width: 200, height: 38)
+        let player = FakeModule("player", content: true, height: 156)
+        let stack = FakeModule("stack", content: true, height: ShelfStackView.contentHeight, width: ShelfStackView.islandWidth)
+        state.modules = [player, stack]
+        state.select("stack")
+        #expect(state.expandedSize.height <= IslandController.panelSize.height)
+        #expect(state.expandedSize.width <= IslandController.panelSize.width)
     }
 }
 

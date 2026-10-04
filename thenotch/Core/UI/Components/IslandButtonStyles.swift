@@ -14,9 +14,12 @@ struct IslandIconButtonStyle: ButtonStyle {
     var isFilled = false
     /// Always full strength (primary controls such as play/pause).
     var isProminent = false
+    /// Smallest width and height: `Size.control`, or `Size.smallControl`
+    /// for small secondary buttons.
+    var size = IslandStyle.Size.control
 
     func makeBody(configuration: Configuration) -> some View {
-        IslandButtonBody(configuration: configuration, isSelected: isSelected || isFilled, isProminent: isProminent, shape: Circle(), insets: EdgeInsets(), minSize: IslandStyle.Size.control)
+        IslandButtonBody(configuration: configuration, isSelected: isSelected || isFilled, isProminent: isProminent, shape: Circle(), insets: EdgeInsets(), minSize: size)
             .labelStyle(.iconOnly)
     }
 }
@@ -37,8 +40,8 @@ struct IslandTextButtonStyle: ButtonStyle {
 }
 
 extension ButtonStyle where Self == IslandIconButtonStyle {
-    static func islandIcon(isSelected: Bool = false, isFilled: Bool = false, isProminent: Bool = false) -> IslandIconButtonStyle {
-        IslandIconButtonStyle(isSelected: isSelected, isFilled: isFilled, isProminent: isProminent)
+    static func islandIcon(isSelected: Bool = false, isFilled: Bool = false, isProminent: Bool = false, size: CGFloat = IslandStyle.Size.control) -> IslandIconButtonStyle {
+        IslandIconButtonStyle(isSelected: isSelected, isFilled: isFilled, isProminent: isProminent, size: size)
     }
 }
 

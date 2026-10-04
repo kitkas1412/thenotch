@@ -30,6 +30,10 @@ protocol IslandModule: AnyObject {
     /// that isn't pushed by notifications).
     func islandDidExpand()
 
+    /// The island closed. A module whose open layout changes while open
+    /// (the shelf's stack and list) goes back to the one it opens with.
+    func islandDidCollapse()
+
     /// Whether the expanded island has something to show for this module.
     /// Hovering the notch opens the island only if some module does (Now
     /// Playing: a playing or paused track; Shelf: files on it).
@@ -40,6 +44,11 @@ protocol IslandModule: AnyObject {
     /// must fit in `IslandController.panelSize`.
     var expandedContentHeight: CGFloat { get }
 
+    /// Width of the open island while it shows this module. Most modules
+    /// use the standard `IslandState.expandedWidth`; the shelf's stack is
+    /// narrower. It must stay ≤ `IslandController.panelSize.width`.
+    var expandedWidth: CGFloat { get }
+
     /// Width of the widest compact wing's content (leading or trailing),
     /// at most `IslandStyle.Size.compactContent` tall. Content narrower
     /// than this sits snug against the notch.
@@ -49,7 +58,11 @@ protocol IslandModule: AnyObject {
 extension IslandModule {
     func islandDidExpand() {}
 
+    func islandDidCollapse() {}
+
     var expandedContentHeight: CGFloat { IslandState.defaultContentHeight }
+
+    var expandedWidth: CGFloat { IslandState.expandedWidth }
 
     var compactContentWidth: CGFloat { IslandStyle.Size.compactContent }
 }

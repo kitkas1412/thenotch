@@ -36,7 +36,7 @@ struct IslandFill: ShapeStyle {
         /// The edge of a drop zone: a non-text element that must read at
         /// 3:1 or more.
         case outline
-        /// The edge of a drop zone with files over it.
+        /// The edge of a drop zone, or the island, with files over it: white.
         case outlineActive
 
         /// White opacity at standard contrast, and with Increase Contrast.
@@ -49,7 +49,7 @@ struct IslandFill: ShapeStyle {
             case .track: (0.2, 0.35)
             case .progress: (0.7, 1)
             case .outline: (0.45, 0.7)
-            case .outlineActive: (0.8, 1)
+            case .outlineActive: (1, 1)
             }
         }
     }

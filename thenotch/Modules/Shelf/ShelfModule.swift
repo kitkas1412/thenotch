@@ -16,6 +16,8 @@ final class ShelfModule: FileDropReceiving {
     static let priority = 5
 
     let store: ShelfStore
+    /// Stack or list; the island opens on the stack.
+    let presentation = ShelfPresentation()
     private let activities: ActivityCenter
     private let settings: AppSettings
     /// Where owned files (`DroppedFile.isOwned`) live.
@@ -91,13 +93,25 @@ final class ShelfModule: FileDropReceiving {
         prune()
     }
 
+    func islandDidCollapse() {
+        presentation.showsAll = false
+    }
+
     /// Files wait on the shelf. While files are dragged in, the island
     /// opens on the shelf regardless (it's pinned by the drag).
     var hasExpandedContent: Bool {
         !store.items.isEmpty
     }
 
-    var expandedContentHeight: CGFloat { ShelfExpandedView.contentHeight }
+    var expandedContentHeight: CGFloat {
+        presentation.showsAll ? ShelfListView.contentHeight : ShelfStackView.contentHeight
+    }
+
+    /// The stack is a small square, like Dropover's shelf; the list takes
+    /// the standard width.
+    var expandedWidth: CGFloat {
+        presentation.showsAll ? IslandState.expandedWidth : ShelfStackView.islandWidth
+    }
 
     func compactLeading() -> AnyView {
         AnyView(
@@ -113,32 +127,30 @@ final class ShelfModule: FileDropReceiving {
     }
 
     func expandedView() -> AnyView {
-        AnyView(ShelfExpandedView(
-            store: store,
-            onAdd: { [weak self] in self?.receive($0) },
-            onAirDrop: { AirDrop.send($0) },
-            onOpen: { NSWorkspace.shared.open($0.url) },
-            onReveal: { NSWorkspace.shared.activateFileViewerSelecting([$0.url]) },
-            onRemove: { [weak self] item in
+        AnyView(ShelfView(store: store, presentation: presentation, actions: ShelfActions(
+            airDrop: { AirDrop.send($0) },
+            open: { NSWorkspace.shared.open($0.url) },
+            reveal: { NSWorkspace.shared.activateFileViewerSelecting($0.map(\.url)) },
+            remove: { [weak self] item in
                 self?.store.remove(item.id)
                 self?.changed()
             },
-            onDraggedOut: { [weak self] item, outcome in
+            draggedOut: { [weak self] items, outcome in
                 guard let self else { return }
-                Log.drop.notice("Shelf file was dropped elsewhere (\(String(describing: outcome), privacy: .public)); removing it from the shelf")
+                Log.drop.notice("\(items.count) shelf file(s) were dropped elsewhere (\(String(describing: outcome), privacy: .public)); removing them from the shelf")
                 // A copy was dropped: the app may still be reading the
                 // file (a browser uploads it after the drop), so an owned
                 // file is left for the cleanup at the next launch.
                 self.keepsOwnedFiles = outcome == .copied
-                self.store.remove(item.id)
+                self.store.remove(Set(items.map(\.id)))
                 self.keepsOwnedFiles = false
                 self.changed()
             },
-            onClear: { [weak self] in
+            clear: { [weak self] in
                 self?.store.removeAll()
                 self?.changed()
             }
-        ))
+        )))
     }
 
     // MARK: - Housekeeping

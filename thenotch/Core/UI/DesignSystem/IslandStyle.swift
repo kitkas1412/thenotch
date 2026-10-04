@@ -63,6 +63,9 @@ enum IslandStyle {
         /// Minimum hit target: the macOS default control size (HIG
         /// Accessibility › Mobility, 28×28 pt).
         static let control: CGFloat = 28
+        /// Small secondary buttons (the shelf stack's ✕ and …): the macOS
+        /// minimum control size (HIG Accessibility › Mobility, 20×20 pt).
+        static let smallControl: CGFloat = 20
         /// The player's row of controls: previous, play/pause, next, and
         /// the favorite and output buttons on filled circles at its ends.
         static let playerControl: CGFloat = 40
@@ -74,8 +77,15 @@ enum IslandStyle {
         static let artwork: CGFloat = 64
         /// File thumbnail on the shelf.
         static let thumbnail: CGFloat = 44
+        /// A file in the shelf's stack; the stack is a little larger,
+        /// for the fanned-out files behind.
+        static let stackThumbnail: CGFloat = 88
         /// Width of a shelf tile's name (two lines).
         static let tileLabelWidth: CGFloat = 68
+        /// The island's border while files are dragged in, and once they
+        /// are over it.
+        static let dropBorder: CGFloat = 1.5
+        static let dropBorderActive: CGFloat = 3
         /// Height of the progress bar.
         static let progressBar: CGFloat = 6
         /// Height of the level meter.
@@ -89,6 +99,8 @@ enum IslandStyle {
     /// SF Symbol point sizes. Symbols scale with the font, not with
     /// `scaleEffect`, so they stay sharp.
     enum SymbolSize: CGFloat {
+        /// In a small control (`Size.smallControl`).
+        case small = 10
         /// In a compact wing; semibold to match the wing's text.
         case compact = 13
         /// In an icon button.

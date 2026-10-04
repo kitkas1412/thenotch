@@ -48,12 +48,49 @@ enum HoverPolicy {
         expandedSize: CGSize
     ) -> Action {
         if isExpanded {
-            return exitRect(notch: notch, expandedSize: expandedSize).contains(pointer) ? .none : .close
+            // A drag that opened the island keeps it open where it could
+            // open it: the island (the shelf's stack) can be narrower than
+            // the drag entry region around wide wings.
+            let staysOpen = exitRect(notch: notch, expandedSize: expandedSize).contains(pointer)
+                || (isDragging && dragEntryRect(notch: notch, compactSize: compactSize).contains(pointer))
+            return staysOpen ? .none : .close
         }
         let entry = isDragging
             ? dragEntryRect(notch: notch, compactSize: compactSize)
             : entryRect(notch: notch, compactSize: compactSize)
         return entry.contains(pointer) ? .open : .none
+    }
+
+    /// The open island can shrink under the pointer: clicking the shelf's
+    /// tab beside the notch narrows it to the shelf's stack, leaving the
+    /// pointer outside. The region the island covered before keeps it open
+    /// until the pointer is over the island again (or leaves that region),
+    /// so it doesn't close under the click that shrank it.
+    struct ShrinkGrace {
+        private var lastSize: CGSize?
+        private var graceSize: CGSize?
+
+        /// The size whose `exitRect` keeps the island open now.
+        /// `isPointerOver` tells whether the pointer is in a size's exit rect.
+        mutating func exitSize(for size: CGSize, isPointerOver: (CGSize) -> Bool) -> CGSize {
+            if let lastSize, size.width < lastSize.width || size.height < lastSize.height {
+                graceSize = Self.union(graceSize ?? lastSize, lastSize)
+            }
+            lastSize = size
+            if graceSize != nil, isPointerOver(size) {
+                graceSize = nil
+            }
+            return graceSize.map { Self.union($0, size) } ?? size
+        }
+
+        /// The island closed.
+        mutating func reset() {
+            self = ShrinkGrace()
+        }
+
+        private static func union(_ a: CGSize, _ b: CGSize) -> CGSize {
+            CGSize(width: max(a.width, b.width), height: max(a.height, b.height))
+        }
     }
 
     /// Rect of `size` centered on the notch and hanging from the top of the
