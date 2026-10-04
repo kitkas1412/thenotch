@@ -5,6 +5,7 @@
 //  Created by Nguyễn Đình Đức on 3/10/26.
 //
 
+import os
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -14,6 +15,9 @@ struct IslandView: View {
     var state: IslandState
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Drop zones shown by the module, and the one files are over.
+    @State private var dropTargets: [IslandDropTarget] = []
+    @State private var targetedDropZone: String?
 
     private static let expandedRadii = (top: IslandStyle.Radius.islandFlare, bottom: IslandStyle.Radius.island)
 
@@ -62,9 +66,17 @@ struct IslandView: View {
         // Increase Contrast).
         .environment(\.colorScheme, .dark)
         // Only reachable while expanded: the panel ignores the mouse otherwise.
-        // Modules may add their own drop zones inside; this catches the rest.
-        .onDrop(of: FileDrop.acceptedTypes, isTargeted: nil, perform: drop)
+        // The one drop target, outside the clip shape: it hands files to
+        // the module's drop zone under the pointer, or to the module.
+        .onPreferenceChange(IslandDropTarget.Key.self) { dropTargets = $0 }
+        .coordinateSpace(name: IslandDropTarget.coordinateSpace)
+        .onDrop(of: FileDrop.acceptedTypes, delegate: IslandDropDelegate(
+            state: state,
+            targets: dropTargets,
+            targetedZone: $targetedDropZone
+        ))
         .environment(\.isDraggingFiles, state.isDraggingFiles)
+        .environment(\.targetedDropZone, targetedDropZone)
         .environment(\.beginDragOut) { [state] in
             state.onDragOutBegan?()
         }
@@ -91,17 +103,6 @@ struct IslandView: View {
         .environment(\.colorScheme, .dark)
     }
 
-    private func drop(_ providers: [NSItemProvider]) -> Bool {
-        guard let receiver = state.expandedModule as? any FileDropReceiving else { return false }
-        Task { @MainActor in
-            let files = await FileDrop.loadFiles(from: providers)
-            if !files.isEmpty {
-                receiver.receive(files)
-            }
-        }
-        return true
-    }
-
     @ViewBuilder
     private var expandedContent: some View {
         if let module = state.expandedModule {
@@ -110,6 +111,51 @@ struct IslandView: View {
             // Every module is switched off.
             IslandEmptyState(title: "No modules are on", message: "Turn one on in thenotch Settings.")
         }
+    }
+}
+
+/// Takes files dropped anywhere on the island: on a drop zone, they go to
+/// that zone; elsewhere, to the shown module if it takes files.
+private struct IslandDropDelegate: DropDelegate {
+    let state: IslandState
+    let targets: [IslandDropTarget]
+    @Binding var targetedZone: String?
+
+    func validateDrop(info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: FileDrop.acceptedTypes)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        let zone = IslandDropTarget.target(at: info.location, in: targets)?.id
+        if zone != targetedZone {
+            targetedZone = zone
+        }
+        return DropProposal(operation: .copy)
+    }
+
+    func dropExited(info: DropInfo) {
+        targetedZone = nil
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        targetedZone = nil
+        let perform: ([DroppedFile]) -> Void
+        if let target = IslandDropTarget.target(at: info.location, in: targets) {
+            Log.drop.notice("Drop on the \(target.id, privacy: .public) zone")
+            perform = target.perform
+        } else if let receiver = state.expandedModule as? any FileDropReceiving {
+            perform = { receiver.receive($0) }
+        } else {
+            return false
+        }
+        let providers = info.itemProviders(for: FileDrop.acceptedTypes)
+        Task { @MainActor in
+            let files = await FileDrop.loadFiles(from: providers)
+            if !files.isEmpty {
+                perform(files)
+            }
+        }
+        return true
     }
 }
 
