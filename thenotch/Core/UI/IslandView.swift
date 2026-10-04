@@ -270,8 +270,16 @@ private struct ModuleTabs: View {
                         state.select(module.id)
                     }
                 } label: {
-                    Label(kind?.title ?? module.id, systemImage: kind?.symbol ?? "circle")
-                        .font(.islandSymbol(.compact, weight: .semibold))
+                    Label {
+                        Text(kind?.title ?? module.id)
+                    } icon: {
+                        if kind == .claudeCode {
+                            ClaudeMascot(pixel: 1)
+                        } else {
+                            Image(systemName: kind?.symbol ?? "circle")
+                        }
+                    }
+                    .font(.islandSymbol(.compact, weight: .semibold))
                 }
                 .buttonStyle(.islandIcon(isSelected: isShown))
                 .help(kind?.title ?? module.id)

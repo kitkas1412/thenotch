@@ -6,6 +6,10 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Claude Code: see when Claude Code is working, done, or waiting for your permission, beside the notch; open the island for every session, its project and what it's doing. Turn it on in Settings › Modules; thenotch then adds hooks to Claude Code's settings (and removes them when you turn it off). When Claude asks you a question, the island shows it with its choices, so you can read it without switching back (you still answer in Claude Code). Works for Claude Code in a terminal, an IDE or the Claude app's Code tab.
+
 ## [0.5.1] - 2026-10-04
 
 ### Changed

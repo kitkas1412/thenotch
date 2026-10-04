@@ -74,6 +74,15 @@ struct SettingsView: View {
                             }
                         }
                     }
+                    if kind == .claudeCode && settings.isEnabled(.claudeCode) {
+                        if let problem = ClaudeCodeStatus.shared.problem {
+                            Text(problem)
+                                .foregroundStyle(.red)
+                        } else {
+                            Text("thenotch added hooks to ~/.claude/settings.json (a copy of the original is kept next to it). They tell thenotch when a session starts, works, finishes or asks for permission, and are removed when you turn this off. Prompts and replies aren't read.")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                     if kind == .bluetooth && settings.isEnabled(.bluetooth) && isBluetoothDenied {
                         HStack {
                             Text("Allow thenotch in Bluetooth to see devices connect.")

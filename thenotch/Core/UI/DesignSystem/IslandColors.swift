@@ -78,6 +78,9 @@ enum IslandSignal {
     static let charging = Color.green
     /// Low battery (with an empty battery).
     static let critical = Color.red
+    /// Something waits for the user, such as Claude Code asking for
+    /// permission (with a raised hand or a speech bubble).
+    static let attention = Color.orange
     /// The selected item (with the selection's shape). The only use of the
     /// accent color in the island (HIG Branding › "Apply your app's
     /// accent color judiciously").
