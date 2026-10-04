@@ -6,9 +6,13 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-04
+
+The first version you can get with **Check for Updates…** from 0.3.0.
+
 ### Fixed
 
-- Shelf: dropping files on the **AirDrop** zone sends them with AirDrop again, instead of doing nothing or putting them on the shelf. Drops on **Keep on Shelf** are taken across the whole zone.
+- Shelf: dropping files on the **AirDrop** zone while dragging them in now sends them with AirDrop; before, they ended up on the shelf. Drops on **Keep on Shelf** are taken across the whole zone.
 
 ## [0.3.0] - 2026-10-03
 
@@ -62,7 +66,8 @@ First public release (MVP).
 - Not notarized (no paid Apple Developer ID yet): macOS asks you to allow the app once, and may ask for Automation permission again after an update.
 - Now Playing supports only Spotify and Apple Music (not browsers or other players).
 
-[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/kitkas1412/thenotch/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/kitkas1412/thenotch/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kitkas1412/thenotch/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kitkas1412/thenotch/releases/tag/v0.1.0
