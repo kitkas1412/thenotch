@@ -6,6 +6,10 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Switching tabs slides the content over to the next tab, toward its side, instead of fading to a new view. With Reduce Motion on, it still fades.
+
 ## [0.3.2] - 2026-10-04
 
 ### Changed
