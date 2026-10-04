@@ -225,18 +225,12 @@ private struct ModuleIconTile: View {
     let kind: ModuleKind
 
     var body: some View {
-        Group {
-            if kind == .claudeCode {
-                ClaudeMascot(pixel: 0.9, color: .white)
-            } else {
-                Image(systemName: kind.symbol)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-        }
-        .frame(width: SettingsLayout.iconTile, height: SettingsLayout.iconTile)
-        .background(kind.tint.gradient, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-        .accessibilityHidden(true)
+        Image(systemName: kind.symbol)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: SettingsLayout.iconTile, height: SettingsLayout.iconTile)
+            .background(kind.tint.gradient, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .accessibilityHidden(true)
     }
 }
 

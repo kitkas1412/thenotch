@@ -92,15 +92,6 @@ final class ClaudeCodeModule: IslandModule {
         AnyView(ClaudeSessionsView(model: model))
     }
 
-    /// The mascot beside the notch: 27×15 pt, a little shorter than wing
-    /// content (`IslandStyle.Size.compactContent`, 20 pt) and centered in
-    /// it; the right wing is as wide.
-    static let mascotPixel: CGFloat = 1.5
-
-    var compactContentWidth: CGFloat {
-        ClaudeMascot.frame(pixel: Self.mascotPixel).width
-    }
-
     var hasExpandedContent: Bool {
         !model.sessions.isEmpty
     }
@@ -219,13 +210,21 @@ final class ClaudeCodeStatus {
 
 // MARK: - Views
 
-/// Left wing: the mascot, hopping while a session works.
+/// Left wing: a sparkle, pulsing while a session works (not under Reduce
+/// Motion, or when nobody can see it).
 private struct ClaudeCompactSymbol: View {
     var model: ClaudeCodeModel
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.allowsAmbientAnimation) private var allowsAmbientAnimation
+
     var body: some View {
         let isWorking = model.peek == nil && model.waitingState == nil && !model.sessions.working.isEmpty
-        ClaudeMascot(pixel: ClaudeCodeModule.mascotPixel, isWorking: isWorking)
+        Image(systemName: ModuleKind.claudeCode.symbol)
+            .font(.islandSymbol(.compact, weight: .semibold))
+            .foregroundStyle(model.waitingState != nil ? AnyShapeStyle(IslandSignal.attention) : AnyShapeStyle(.primary))
+            .symbolEffect(.pulse, isActive: isWorking && !reduceMotion && allowsAmbientAnimation)
+            .accessibilityHidden(true)
     }
 }
 
@@ -316,16 +315,10 @@ private struct ClaudeSessionRow: View {
 
     var body: some View {
         HStack(spacing: IslandStyle.Spacing.m) {
-            Group {
-                if session.state == .working {
-                    ClaudeMascot(pixel: 1.5, isWorking: true)
-                } else {
-                    Image(systemName: symbol)
-                        .font(.islandSymbol(.control, weight: .semibold))
-                        .foregroundStyle(tint)
-                }
-            }
-            .frame(width: IslandStyle.Size.control)
+            Image(systemName: symbol)
+                .font(.islandSymbol(.control, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: IslandStyle.Size.control)
             VStack(alignment: .leading, spacing: IslandStyle.Spacing.xxs) {
                 Text(session.projectName)
                     .font(.islandHeadline)
@@ -346,7 +339,7 @@ private struct ClaudeSessionRow: View {
 
     private var symbol: String {
         switch session.state {
-        case .working: "ellipsis"
+        case .working: ModuleKind.claudeCode.symbol
         case .needsPermission: "hand.raised.fill"
         case .asking: "questionmark.bubble.fill"
         case .waitingForInput: "bubble.left.fill"
