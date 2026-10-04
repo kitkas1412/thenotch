@@ -6,6 +6,8 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-04
+
 ### Added
 
 - Bluetooth: AirPods and other Bluetooth devices peek beside the notch when they connect, or when the sound switches to them (taking AirPods out of their case), with their battery; open the island for each AirPod and the case. macOS still shows its own AirPods card below the notch. Turn it on in Settings › Modules; it needs Bluetooth access, which thenotch asks for then.
@@ -98,7 +100,8 @@ First public release (MVP).
 - Not notarized (no paid Apple Developer ID yet): macOS asks you to allow the app once, and may ask for Automation permission again after an update.
 - Now Playing supports only Spotify and Apple Music (not browsers or other players).
 
-[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/kitkas1412/thenotch/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/kitkas1412/thenotch/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/kitkas1412/thenotch/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/kitkas1412/thenotch/compare/v0.3.1...v0.3.2
