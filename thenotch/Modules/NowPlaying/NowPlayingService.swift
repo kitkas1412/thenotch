@@ -4,6 +4,7 @@
 //
 
 import AppKit
+import ImageIO
 import Observation
 
 /// Tracks what Spotify and Music are playing and controls playback.
@@ -251,12 +252,15 @@ final class NowPlayingService {
         }
         artworkTask?.cancel()
         artworkTask = Task {
-            guard let (data, _) = try? await URLSession.shared.data(from: url),
-                  !Task.isCancelled,
-                  let image = NSImage(data: data)
-            else { return }
-            let thumbnail = Self.downscaled(image, to: Self.artworkPixelSize)
-            let tint = (thumbnail.representations.first as? NSBitmapImageRep).flatMap(ArtworkTint.tint(of:))
+            guard let (data, _) = try? await URLSession.shared.data(from: url), !Task.isCancelled else { return }
+            // Decoding and scaling block for a while: not on the main thread.
+            let side = Self.artworkPixelSize
+            let decoded = await Task.detached(priority: .utility) {
+                NowPlayingService.thumbnail(from: data, side: side)
+            }.value
+            guard let (rep, tint) = decoded, !Task.isCancelled else { return }
+            let thumbnail = NSImage(size: NSSize(width: rep.pixelsWide / 2, height: rep.pixelsHigh / 2))
+            thumbnail.addRepresentation(rep)
             if artworkCache.count >= 50 {
                 artworkCache.removeAll()
             }
@@ -268,22 +272,30 @@ final class NowPlayingService {
         }
     }
 
-    /// Redraws `image` into a `side`×`side` pixel bitmap (shown at @2x), so
-    /// the full-size download isn't kept in memory.
-    private static func downscaled(_ image: NSImage, to side: CGFloat) -> NSImage {
-        guard let rep = NSBitmapImageRep(
-            bitmapDataPlanes: nil, pixelsWide: Int(side), pixelsHigh: Int(side),
-            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
-        ) else { return image }
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-        image.draw(in: NSRect(x: 0, y: 0, width: side, height: side))
-        NSGraphicsContext.restoreGraphicsState()
-
-        let thumbnail = NSImage(size: NSSize(width: side / 2, height: side / 2))
-        thumbnail.addRepresentation(rep)
-        return thumbnail
+    /// Decodes `data` straight to about `side` pixels (ImageIO, so the
+    /// full-size image is never decoded), draws it into a `side`×`side` RGBA
+    /// bitmap (shown at @2x) and takes its tint. Runs off the main thread.
+    nonisolated private static func thumbnail(from data: Data, side: CGFloat) -> (NSBitmapImageRep, NSColor?)? {
+        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else { return nil }
+        let options = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: side,
+        ] as CFDictionary
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options),
+              let rep = NSBitmapImageRep(
+                  bitmapDataPlanes: nil, pixelsWide: Int(side), pixelsHigh: Int(side),
+                  bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                  colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
+              ),
+              let context = NSGraphicsContext(bitmapImageRep: rep)
+        else { return nil }
+        context.cgContext.interpolationQuality = .high
+        context.cgContext.draw(image, in: CGRect(x: 0, y: 0, width: side, height: side))
+        context.flushGraphics()
+        return (rep, ArtworkTint.tint(of: rep))
     }
 
     private func observe(_ name: String, handler: @escaping ([AnyHashable: Any]) -> Void) {

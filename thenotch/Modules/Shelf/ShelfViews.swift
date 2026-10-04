@@ -4,7 +4,6 @@
 //
 
 import AppKit
-import QuickLookThumbnailing
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -211,26 +210,19 @@ private struct ShelfTile: View {
 }
 
 /// Quick Look thumbnail (image, PDF, video frame…), or the file's icon
-/// while it loads or when there is none.
+/// while it loads or when there is none. Thumbnails are cached
+/// (`ShelfThumbnails`), so reopening the island shows them right away.
 private struct ShelfThumbnail: View {
     let url: URL
     @State private var thumbnail: NSImage?
     @Environment(\.displayScale) private var displayScale
 
     var body: some View {
-        Image(nsImage: thumbnail ?? NSWorkspace.shared.icon(forFile: url.path))
+        Image(nsImage: thumbnail ?? ShelfThumbnails.cached(for: url, scale: displayScale) ?? NSWorkspace.shared.icon(forFile: url.path))
             .resizable()
             .aspectRatio(contentMode: .fit)
             .task(id: url) {
-                let request = QLThumbnailGenerator.Request(
-                    fileAt: url,
-                    size: CGSize(width: IslandStyle.Size.thumbnail, height: IslandStyle.Size.thumbnail),
-                    scale: displayScale,
-                    representationTypes: .thumbnail
-                )
-                if let representation = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request) {
-                    thumbnail = representation.nsImage
-                }
+                thumbnail = await ShelfThumbnails.thumbnail(for: url, side: IslandStyle.Size.thumbnail, scale: displayScale)
             }
     }
 }

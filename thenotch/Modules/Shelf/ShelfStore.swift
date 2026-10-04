@@ -25,8 +25,9 @@ struct ShelfItem: Identifiable, Equatable {
     var name: String { url.lastPathComponent }
 }
 
-/// Files on the shelf, newest first, saved by `persistence` shortly after
-/// changes (`saveDelay`), in the background.
+/// Files on the shelf, newest first. With `persistence`, they're read in
+/// the background by `load()` and saved shortly after changes
+/// (`saveDelay`), in the background.
 @MainActor
 @Observable
 final class ShelfStore {
@@ -35,18 +36,40 @@ final class ShelfStore {
     /// Changes in quick succession (a drop, then pruning…) are saved once.
     static let saveDelay: Duration = .seconds(1)
 
-    private(set) var items: [ShelfItem] {
+    private(set) var items: [ShelfItem] = [] {
         didSet { scheduleSave() }
     }
+    /// The saved shelf has been read (always, without `persistence`).
+    /// Nothing is saved before, so the file can't lose what's in it.
+    @ObservationIgnored private(set) var isLoaded: Bool
 
     /// Called with items that left the shelf, so owned files can be deleted.
     @ObservationIgnored var onRemove: (([ShelfItem]) -> Void)?
     @ObservationIgnored private let persistence: ShelfPersistence?
     @ObservationIgnored private var pendingSave: Task<Void, Never>?
+    @ObservationIgnored private var isLoading = false
 
     init(persistence: ShelfPersistence? = nil) {
         self.persistence = persistence
-        items = persistence?.load() ?? []
+        isLoaded = persistence == nil
+    }
+
+    /// Reads the saved shelf in the background, once. Files added
+    /// meanwhile stay in front of the saved ones.
+    func load() async {
+        guard let persistence, !isLoaded, !isLoading else { return }
+        isLoading = true
+        let saved = await persistence.loadInBackground()
+        let added = items
+        let known = Set(added.map { Self.key($0.url) })
+        let all = added + saved.filter { !known.contains(Self.key($0.url)) }
+        items = Array(all.prefix(Self.maxItems))  // not saved: not loaded yet
+        isLoaded = true
+        isLoading = false
+        removed(Array(all.dropFirst(Self.maxItems)))
+        if !added.isEmpty {
+            scheduleSave()
+        }
     }
 
     /// Adds files not already on the shelf, newest first, keeping the
@@ -102,7 +125,7 @@ final class ShelfStore {
     }
 
     private func scheduleSave() {
-        guard persistence != nil else { return }
+        guard persistence != nil, isLoaded else { return }
         pendingSave?.cancel()
         pendingSave = Task { [weak self] in
             try? await Task.sleep(for: Self.saveDelay)

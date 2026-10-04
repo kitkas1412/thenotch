@@ -10,6 +10,9 @@ All notable changes to thenotch are documented here. The format follows
 
 - Uses less energy: the level meter beside the notch stands still while the display sleeps, the screen is locked, another user is logged in, or Low Power Mode is on.
 - The shelf is saved in the background, a moment after it changes, instead of on every change; nothing is lost when you quit.
+- Faster launch: the shelf is read in the background instead of holding up the island.
+- Opening the island shows shelf thumbnails right away: they're kept instead of being made again each time.
+- Album artwork is decoded at the size it's shown, off the main thread.
 
 ## [0.3.1] - 2026-10-04
 
