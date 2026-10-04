@@ -6,13 +6,15 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
-### Changed
-
-- Settings: two panes, General and Modules, chosen in the window's toolbar; it opens on the one you used last. Each module has its icon and description, and what it needs shows right under it while it's on: the shelf's "Keep files for", a missing Accessibility or Bluetooth permission with a button to Privacy & Security, or where Claude Code's hooks are, with Show in Finder.
+## [0.6.0] - 2026-10-04
 
 ### Added
 
 - Claude Code: see when Claude Code is working, done, or waiting for your permission, beside the notch; open the island for every session, its project and what it's doing. Turn it on in Settings › Modules; thenotch then adds hooks to Claude Code's settings (and removes them when you turn it off). When Claude asks you a question, the island shows it with its choices, so you can read it without switching back (you still answer in Claude Code). Works for Claude Code in a terminal, an IDE or the Claude app's Code tab.
+
+### Changed
+
+- Settings: two panes, General and Modules, chosen in the window's toolbar; it opens on the one you used last. Each module has its icon and description, and what it needs shows right under it while it's on: the shelf's "Keep files for", a missing Accessibility or Bluetooth permission with a button to Privacy & Security, or where Claude Code's hooks are, with Show in Finder.
 
 ## [0.5.1] - 2026-10-04
 
@@ -115,7 +117,8 @@ First public release (MVP).
 - Not notarized (no paid Apple Developer ID yet): macOS asks you to allow the app once, and may ask for Automation permission again after an update.
 - Now Playing supports only Spotify and Apple Music (not browsers or other players).
 
-[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/kitkas1412/thenotch/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/kitkas1412/thenotch/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/kitkas1412/thenotch/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/kitkas1412/thenotch/compare/v0.4.0...v0.4.1
