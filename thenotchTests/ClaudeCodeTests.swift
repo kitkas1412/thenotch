@@ -219,19 +219,6 @@ struct ClaudeHooksConfigTests {
     }
 }
 
-struct ClaudeMascotTests {
-    @Test func gridIsRectangular() {
-        #expect(Set(ClaudeMascot.rows.map(\.count)).count == 1)
-    }
-
-    @Test func pixelsAreTerminalCellQuarters() {
-        // 18 columns by 5 rows of half-cells: 36×20 pt at 2 pt wide pixels.
-        #expect(ClaudeMascot.frame(pixel: 2) == CGSize(width: 36, height: 20))
-        // Beside the notch it fits in the wing's height.
-        #expect(ClaudeMascot.frame(pixel: ClaudeCodeModule.mascotPixel).height <= IslandStyle.Size.compactContent)
-    }
-}
-
 @MainActor
 struct ClaudeQuestionLayoutTests {
     @Test func aLongQuestionFitsThePanel() {

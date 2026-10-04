@@ -37,7 +37,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .shelf: "tray.full.fill"
         case .hud: "speaker.wave.2.fill"
         case .bluetooth: "airpods"
-        case .claudeCode: "terminal"
+        case .claudeCode: "sparkle"
         }
     }
 

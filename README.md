@@ -11,7 +11,7 @@ A free, open-source macOS app that turns the MacBook notch into an interactive "
 - **Battery** — a short peek when you plug in or unplug the charger, or the battery drops to 20% / 10%.
 - **Volume & Brightness** (off until you turn it on) — the volume and brightness keys show a small level bar beside the notch instead of the macOS overlay.
 - **Bluetooth** (off until you turn it on) — AirPods and other Bluetooth devices peek beside the notch when they connect or the sound switches to them, with their battery (each AirPod and the case when you open the island).
-- **Claude Code** (off until you turn it on) — the Claude Code mascot beside the notch while it works, an orange hand while it waits for your permission, a check mark when a reply is done; open the island for every session and what it's doing.
+- **Claude Code** (off until you turn it on) — a sparkle beside the notch while Claude Code works, an orange hand while it waits for your permission, a check mark when a reply is done; open the island for every session and what it's doing.
 - **Settings** — turn modules on or off, launch at login.
 - Works on Macs without a notch too: a simulated notch appears centered under the menu bar.
 
@@ -113,3 +113,7 @@ thenotch/
 ## License
 
 [MIT](LICENSE) © 2026 Nguyễn Đình Đức
+
+## Trademarks
+
+thenotch is an independent project, not affiliated with or endorsed by Anthropic or Apple. Claude and Claude Code are trademarks of Anthropic; Spotify is a trademark of Spotify AB; Apple Music, AirPods and macOS are trademarks of Apple Inc. These names are used only to say which apps and devices thenotch works with.
