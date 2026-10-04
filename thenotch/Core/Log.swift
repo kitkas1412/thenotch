@@ -13,4 +13,6 @@ enum Log {
 
     /// Dragging files onto the island and dropping them.
     static let drop = Logger(subsystem: subsystem, category: "drop")
+    /// The volume and brightness keys.
+    static let hud = Logger(subsystem: subsystem, category: "hud")
 }

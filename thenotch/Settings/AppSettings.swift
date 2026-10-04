@@ -12,6 +12,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
     case nowPlaying
     case battery
     case shelf
+    case hud
 
     var id: String { rawValue }
 
@@ -20,6 +21,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .nowPlaying: "Now Playing"
         case .battery: "Battery"
         case .shelf: "Shelf"
+        case .hud: "Volume & Brightness"
         }
     }
 
@@ -29,6 +31,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .nowPlaying: "music.note"
         case .battery: "battery.100percent"
         case .shelf: "tray.full.fill"
+        case .hud: "speaker.wave.2.fill"
         }
     }
 
@@ -37,7 +40,14 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .nowPlaying: "Track, artwork and controls for Spotify and Music."
         case .battery: "Shows the battery when you plug in, unplug, or run low."
         case .shelf: "Drag files onto the notch to keep them at hand."
+        case .hud: "Shows volume and brightness at the notch instead of the macOS overlay."
         }
+    }
+
+    /// Whether the module is on until the user decides. Volume &
+    /// Brightness needs Accessibility access, asked for when it's turned on.
+    var isOnByDefault: Bool {
+        self != .hud
     }
 
     @MainActor
@@ -46,6 +56,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .nowPlaying: NowPlayingModule(activities: activities)
         case .battery: BatteryModule(activities: activities)
         case .shelf: ShelfModule(activities: activities, settings: settings)
+        case .hud: HUDModule(activities: activities)
         }
     }
 }
@@ -97,9 +108,8 @@ final class AppSettings {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        // Every module is on until the user turns it off.
         enabledModules = ModuleKind.allCases.filter {
-            defaults.object(forKey: Self.key(for: $0)) as? Bool ?? true
+            defaults.object(forKey: Self.key(for: $0)) as? Bool ?? $0.isOnByDefault
         }
         shelfLifetime = defaults.string(forKey: Self.shelfLifetimeKey).flatMap(ShelfLifetime.init) ?? .day
     }

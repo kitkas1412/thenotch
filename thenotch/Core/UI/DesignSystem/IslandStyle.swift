@@ -73,6 +73,8 @@ enum IslandStyle {
         /// such as artwork. The notch's remaining height sets the compact
         /// padding (`IslandState.compactPadding`).
         static let compactContent: CGFloat = 20
+        /// The level bar in the volume and brightness wing.
+        static let hudLevel: CGFloat = 64
         /// Large artwork in the open player.
         static let artwork: CGFloat = 64
         /// File thumbnail on the shelf.

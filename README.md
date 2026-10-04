@@ -9,6 +9,7 @@ A free, open-source macOS app that turns the MacBook notch into an interactive "
 - **Island over the notch** — expands when you rest the pointer on it and closes when you move away. It never blocks the menu bar while closed.
 - **Now Playing** — artwork and a level meter beside the notch while Spotify or Apple Music plays; title, artist, progress and playback controls when expanded.
 - **Battery** — a short peek when you plug in or unplug the charger, or the battery drops to 20% / 10%.
+- **Volume & Brightness** (off until you turn it on) — the volume and brightness keys show a small level bar beside the notch instead of the macOS overlay.
 - **Settings** — turn modules on or off, launch at login.
 - Works on Macs without a notch too: a simulated notch appears centered under the menu bar.
 
@@ -38,9 +39,10 @@ To verify a download, compare it with `SHA256SUMS.txt` from the release: `shasum
 ### Permissions
 
 - **Automation (Spotify / Music)** — requested the first time you use a playback control. If you decline, the track is still shown but the controls are replaced by a link to System Settings › Privacy & Security › Automation.
-- Nothing else. thenotch doesn't need Accessibility, Screen Recording or Full Disk Access.
+- **Accessibility** — only for Volume & Brightness, requested when you turn it on in Settings. It lets thenotch take the volume and brightness keys before macOS does. Without it, the keys work as usual with the macOS overlay. Brightness is set through a private macOS framework (there is no public one); if a macOS update changes it, the brightness keys go back to macOS.
+- Nothing else. thenotch doesn't need Screen Recording or Full Disk Access.
 
-Because releases are not signed with a Developer ID, macOS may ask for the Automation permission again after you update.
+Because releases are not signed with a Developer ID, macOS may ask for the Automation permission again after you update. Accessibility is the same, but macOS doesn't ask: thenotch still shows as allowed while the overlay comes back. Remove thenotch from System Settings › Privacy & Security › Accessibility (−) and turn Volume & Brightness off and on again.
 
 ## Privacy
 
@@ -100,7 +102,7 @@ Sparkle installs only updates signed with the private key whose public half is `
 thenotch/
 ├── App/        # Entry point (menu bar extra, Settings scene) and AppDelegate
 ├── Core/       # Island window, geometry, state, hover logic, module system
-├── Modules/    # Features: NowPlaying, Battery
+├── Modules/    # Features: NowPlaying, Battery, Shelf, HUD
 └── Settings/   # Preferences and the Settings window
 ```
 

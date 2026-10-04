@@ -8,6 +8,7 @@ All notable changes to thenotch are documented here. The format follows
 
 ### Added
 
+- Volume & Brightness: the volume, mute and brightness keys show a small level bar beside the notch instead of the macOS overlay. Turn it on in Settings › Modules; it needs Accessibility access, which thenotch asks for then. Shift-Option with the keys changes the level in smaller steps, as in macOS.
 - Player: click or drag along the progress bar to jump to another part of the track, in Spotify and Music. The time follows the pointer while you drag; the track moves when you let go. With VoiceOver, swipe up or down to skip 10 seconds.
 
 ## [0.4.1] - 2026-10-04

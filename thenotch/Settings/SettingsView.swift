@@ -10,6 +10,8 @@ struct SettingsView: View {
     var settings: AppSettings
     var updater: Updater
 
+    @State private var isAccessibilityTrusted = AccessibilityPermission.isTrusted
+
     var body: some View {
         Form {
             Section("General") {
@@ -50,10 +52,26 @@ struct SettingsView: View {
                 ForEach(ModuleKind.allCases) { kind in
                     Toggle(isOn: Binding(
                         get: { settings.isEnabled(kind) },
-                        set: { settings.setEnabled(kind, $0) }
+                        set: { enabled in
+                            settings.setEnabled(kind, enabled)
+                            // Ask in context, when the module is turned on.
+                            if kind == .hud && enabled {
+                                AccessibilityPermission.request()
+                            }
+                        }
                     )) {
                         Text(kind.title)
                         Text(kind.summary)
+                    }
+                    if kind == .hud && settings.isEnabled(.hud) && !isAccessibilityTrusted {
+                        HStack {
+                            Text("Allow thenotch in Accessibility to handle the volume and brightness keys. Until then, macOS shows its own overlay.")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Open Accessibility…") {
+                                AccessibilityPermission.openSettings()
+                            }
+                        }
                     }
                 }
             }
@@ -81,6 +99,14 @@ struct SettingsView: View {
         .fixedSize(horizontal: false, vertical: true)
         .onAppear {
             settings.refreshLaunchAtLogin()
+            isAccessibilityTrusted = AccessibilityPermission.isTrusted
+        }
+        .onReceive(DistributedNotificationCenter.default().publisher(for: AccessibilityPermission.didChangeNotification)) { _ in
+            // The change applies a moment after the notification.
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                isAccessibilityTrusted = AccessibilityPermission.isTrusted
+            }
         }
     }
 

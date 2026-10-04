@@ -17,7 +17,14 @@ struct AppSettingsTests {
         defaults.removePersistentDomain(forName: suite)
     }
 
-    @Test func allModulesAreEnabledByDefault() {
+    @Test func modulesAreEnabledByDefaultExceptTheHUD() {
+        // The HUD needs Accessibility access, asked for when it's turned on.
+        #expect(AppSettings(defaults: defaults).enabledModules == [.nowPlaying, .battery, .shelf])
+    }
+
+    @Test func enablingTheHUDPersists() {
+        let settings = AppSettings(defaults: defaults)
+        settings.setEnabled(.hud, true)
         #expect(AppSettings(defaults: defaults).enabledModules == ModuleKind.allCases)
     }
 
