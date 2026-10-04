@@ -6,6 +6,11 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Uses less energy: the level meter beside the notch stands still while the display sleeps, the screen is locked, another user is logged in, or Low Power Mode is on.
+- The shelf is saved in the background, a moment after it changes, instead of on every change; nothing is lost when you quit.
+
 ## [0.3.1] - 2026-10-04
 
 The first version you can get with **Check for Updates…** from 0.3.0.

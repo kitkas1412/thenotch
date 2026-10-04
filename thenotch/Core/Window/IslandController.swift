@@ -26,6 +26,7 @@ final class IslandController {
     private var notch: CGRect = .zero
     private var screenObserver: NSObjectProtocol?
     private var menuObservers: [NSObjectProtocol] = []
+    private var ambientObservers: [(NotificationCenter, NSObjectProtocol)] = []
     /// A menu of ours is open (output picker, a tile's context menu…). The
     /// pointer moving onto it must not close the island under it.
     private var isTrackingMenu = false
@@ -73,6 +74,7 @@ final class IslandController {
         }
 
         observeMenus()
+        observeAmbientConditions()
 
         // Displays plugged/unplugged, resolution or arrangement changed.
         screenObserver = NotificationCenter.default.addObserver(
@@ -142,6 +144,45 @@ final class IslandController {
                 }
             },
         ]
+    }
+
+    /// Keeps `state.ambient` current, so ambient animation stops while
+    /// nobody sees it or Low Power Mode is on.
+    private func observeAmbientConditions() {
+        state.ambient.isLowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+
+        let workspace = NSWorkspace.shared.notificationCenter
+        observeAmbient(workspace, NSWorkspace.screensDidSleepNotification) { $0.isDisplayAsleep = true }
+        observeAmbient(workspace, NSWorkspace.screensDidWakeNotification) { $0.isDisplayAsleep = false }
+        observeAmbient(workspace, NSWorkspace.sessionDidResignActiveNotification) { $0.isSessionInactive = true }
+        observeAmbient(workspace, NSWorkspace.sessionDidBecomeActiveNotification) { $0.isSessionInactive = false }
+        // Posted by loginwindow; there's no public API for the lock state.
+        let distributed = DistributedNotificationCenter.default()
+        observeAmbient(distributed, Notification.Name("com.apple.screenIsLocked")) { $0.isScreenLocked = true }
+        observeAmbient(distributed, Notification.Name("com.apple.screenIsUnlocked")) { $0.isScreenLocked = false }
+        observeAmbient(.default, Notification.Name.NSProcessInfoPowerStateDidChange) {
+            $0.isLowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+        }
+    }
+
+    private func observeAmbient(
+        _ center: NotificationCenter,
+        _ name: Notification.Name,
+        update: @escaping @MainActor (inout AmbientConditions) -> Void
+    ) {
+        // `NSProcessInfoPowerStateDidChange` may arrive on any thread; the
+        // `.main` queue delivers it on the main thread.
+        let token = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                var ambient = self.state.ambient
+                update(&ambient)
+                if ambient != self.state.ambient {
+                    self.state.ambient = ambient
+                }
+            }
+        }
+        ambientObservers.append((center, token))
     }
 
     // MARK: - Hover

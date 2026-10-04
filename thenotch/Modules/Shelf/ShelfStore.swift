@@ -25,20 +25,24 @@ struct ShelfItem: Identifiable, Equatable {
     var name: String { url.lastPathComponent }
 }
 
-/// Files on the shelf, newest first, saved by `persistence` on every change.
+/// Files on the shelf, newest first, saved by `persistence` shortly after
+/// changes (`saveDelay`), in the background.
 @MainActor
 @Observable
 final class ShelfStore {
     /// Oldest items are dropped beyond this.
     static let maxItems = 50
+    /// Changes in quick succession (a drop, then pruning…) are saved once.
+    static let saveDelay: Duration = .seconds(1)
 
     private(set) var items: [ShelfItem] {
-        didSet { persistence?.save(items) }
+        didSet { scheduleSave() }
     }
 
     /// Called with items that left the shelf, so owned files can be deleted.
     @ObservationIgnored var onRemove: (([ShelfItem]) -> Void)?
     @ObservationIgnored private let persistence: ShelfPersistence?
+    @ObservationIgnored private var pendingSave: Task<Void, Never>?
 
     init(persistence: ShelfPersistence? = nil) {
         self.persistence = persistence
@@ -83,6 +87,29 @@ final class ShelfStore {
     func nextExpiry(lifetime: TimeInterval?) -> Date? {
         guard let lifetime else { return nil }
         return items.map { $0.addedAt.addingTimeInterval(lifetime) }.min()
+    }
+
+    /// Writes a pending change right away, or waits for a save already
+    /// under way (when the app quits or the shelf is switched off).
+    func saveNow() {
+        guard let pendingSave else {
+            persistence?.waitForSaves()
+            return
+        }
+        pendingSave.cancel()
+        self.pendingSave = nil
+        persistence?.saveNow(items)
+    }
+
+    private func scheduleSave() {
+        guard persistence != nil else { return }
+        pendingSave?.cancel()
+        pendingSave = Task { [weak self] in
+            try? await Task.sleep(for: Self.saveDelay)
+            guard let self, !Task.isCancelled else { return }
+            self.pendingSave = nil
+            self.persistence?.saveInBackground(self.items)
+        }
     }
 
     private func remove(where shouldRemove: (ShelfItem) -> Bool) {

@@ -77,6 +77,7 @@ struct IslandView: View {
         ))
         .environment(\.isDraggingFiles, state.isDraggingFiles)
         .environment(\.targetedDropZone, targetedDropZone)
+        .environment(\.allowsAmbientAnimation, state.ambient.allowsAnimation)
         .environment(\.beginDragOut) { [state] in
             state.onDragOutBegan?()
         }

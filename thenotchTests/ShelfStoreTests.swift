@@ -105,6 +105,7 @@ struct ShelfPersistenceTests {
         let b = try makeFile("b.png")
         let store = ShelfStore(persistence: persistence)
         store.add([DroppedFile(url: a, isOwned: false), DroppedFile(url: b, isOwned: true)])
+        store.saveNow()
 
         let reloaded = ShelfStore(persistence: persistence).items
         #expect(reloaded.map(\.id) == store.items.map(\.id))
@@ -116,7 +117,9 @@ struct ShelfPersistenceTests {
     @Test func bookmarksFollowAMovedFile() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         let a = try makeFile("a.txt")
-        ShelfStore(persistence: persistence).add([DroppedFile(url: a, isOwned: false)])
+        let store = ShelfStore(persistence: persistence)
+        store.add([DroppedFile(url: a, isOwned: false)])
+        store.saveNow()
 
         let moved = directory.appendingPathComponent("renamed.txt")
         try FileManager.default.moveItem(at: a, to: moved)
@@ -127,10 +130,41 @@ struct ShelfPersistenceTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let a = try makeFile("a.txt")
         let b = try makeFile("b.txt")
-        ShelfStore(persistence: persistence).add([DroppedFile(url: a, isOwned: false), DroppedFile(url: b, isOwned: false)])
+        let store = ShelfStore(persistence: persistence)
+        store.add([DroppedFile(url: a, isOwned: false), DroppedFile(url: b, isOwned: false)])
+        store.saveNow()
 
         try FileManager.default.removeItem(at: a)
         #expect(ShelfStore(persistence: persistence).items.map(\.name) == ["b.txt"])
+    }
+
+    @Test func changesAreSavedAfterADelay() async throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let a = try makeFile("a.txt")
+        let store = ShelfStore(persistence: persistence)
+        store.add([DroppedFile(url: a, isOwned: false)])
+        #expect(persistence.load().isEmpty)
+
+        // Written in the background once the delay has passed.
+        var saved: [ShelfItem] = []
+        let deadline = ContinuousClock.now + ShelfStore.saveDelay + .seconds(3)
+        while saved.isEmpty && ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(100))
+            saved = persistence.load()
+        }
+        #expect(saved.map(\.id) == store.items.map(\.id))
+    }
+
+    @Test func saveNowWithoutChangesKeepsTheFile() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let a = try makeFile("a.txt")
+        let first = ShelfStore(persistence: persistence)
+        first.add([DroppedFile(url: a, isOwned: false)])
+        first.saveNow()
+
+        // Loading isn't a change: nothing is pending, nothing is rewritten.
+        ShelfStore(persistence: persistence).saveNow()
+        #expect(persistence.load().count == 1)
     }
 
     @Test func missingOrCorruptFileLoadsEmpty() throws {

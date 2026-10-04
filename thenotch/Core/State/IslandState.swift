@@ -31,6 +31,8 @@ final class IslandState {
     /// Something is being dragged out of the island; it stays open until
     /// the drag ends.
     var isDraggingOut = false
+    /// Whether ambient animation may run; kept up to date by the controller.
+    var ambient = AmbientConditions()
     /// Called by the views when they start dragging something out; set by
     /// the controller.
     @ObservationIgnored var onDragOutBegan: (() -> Void)?
