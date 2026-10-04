@@ -153,6 +153,7 @@ Measured on rendered islands (32 pt notch, with a 12 pt margin; the layout scale
 | `labelLine` | 16 | One line of `islandLabel`/`islandNumeric` text |
 | `compactContent` | 20 | Height of wing content (and width of square content like artwork); sets the compact padding |
 | `artwork` | 64 | Player artwork; also the leading column width (battery glyph) |
+| `hudLevel` | 64 | The volume and brightness level bar in the trailing wing (the leading wing shows the symbol, against the notch) |
 | `thumbnail` | 44 | Shelf file preview |
 | `stackThumbnail` | 88 | A file in the shelf's stack (the stack is 104, for the files fanned out behind) |
 | `tileLabelWidth` | 68 | Shelf file name, two lines |
