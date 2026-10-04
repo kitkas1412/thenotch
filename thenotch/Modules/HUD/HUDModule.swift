@@ -22,7 +22,8 @@ final class HUDModule: IslandModule {
     static let duration: TimeInterval = 1.5
 
     private let activities: ActivityCenter
-    private let tap = MediaKeyTap()
+    /// While started.
+    private var tap: MediaKeyTap?
     private let model = HUDModel()
     private var accessObserver: NSObjectProtocol?
     private var retryTask: Task<Void, Never>?
@@ -32,8 +33,18 @@ final class HUDModule: IslandModule {
     }
 
     func start() {
-        tap.onPress = { [weak self] press, flags in
-            self?.handle(press, flags: flags) ?? false
+        // On the tap's thread: act on the key there, show it on the main
+        // thread.
+        tap = MediaKeyTap { [weak self] press, flags in
+            let result = HUDKeys.handle(press, flags: flags)
+            if let shown = result.shown {
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        self?.show(shown)
+                    }
+                }
+            }
+            return result.isHandled
         }
         startTap()
         // Access granted (or revoked) in System Settings while running.
@@ -55,8 +66,8 @@ final class HUDModule: IslandModule {
         accessObserver = nil
         retryTask?.cancel()
         retryTask = nil
-        tap.stop()
-        tap.onPress = nil
+        tap?.stop()
+        tap = nil
         activities.remove(id: id)
     }
 
@@ -77,40 +88,85 @@ final class HUDModule: IslandModule {
 
     var compactContentWidth: CGFloat { IslandStyle.Size.hudLevel }
 
-    // MARK: - Keys
+    private func show(_ shown: HUDKeys.Shown) {
+        model.kind = shown.kind
+        model.level = Double(shown.level)
+        model.isMuted = shown.isMuted
+        activities.publish(LiveActivity(
+            id: id,
+            moduleID: id,
+            priority: Self.priority,
+            expiresAt: .now.addingTimeInterval(Self.duration)
+        ))
+    }
 
-    /// Acts on a key; returns whether it was handled (and so kept from
-    /// macOS). Both the press and the release of a handled key are kept.
-    private func handle(_ press: MediaKey.Press, flags: CGEventFlags) -> Bool {
+    // MARK: - Access
+
+    private func startTap() {
+        guard let tap, !tap.isRunning else { return }
+        if !tap.start() {
+            Log.hud.notice("No Accessibility access: volume and brightness keys are left to macOS")
+        }
+    }
+
+    /// The notification comes before the new access applies: try again
+    /// shortly after.
+    private func accessChanged() {
+        retryTask?.cancel()
+        retryTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard let self, !Task.isCancelled else { return }
+            if !AccessibilityPermission.isTrusted {
+                self.tap?.stop()
+            }
+            self.startTap()
+        }
+    }
+}
+
+/// What a key changed.
+enum HUDKind: Sendable {
+    case volume, brightness
+}
+
+/// Acts on the volume and brightness keys. Called on the key tap's thread:
+/// CoreAudio and DisplayServices can be used from any thread.
+enum HUDKeys {
+    /// The level to show after a key press.
+    struct Shown: Sendable {
+        let kind: HUDKind
+        let level: Float
+        let isMuted: Bool
+    }
+
+    /// Whether the key was handled (and so kept from macOS), and what to
+    /// show. Both the press and the release of a handled key are kept;
+    /// only the press changes anything.
+    static func handle(_ press: MediaKey.Press, flags: CGEventFlags) -> (isHandled: Bool, shown: Shown?) {
         let option = flags.contains(.maskAlternate)
         let shift = flags.contains(.maskShift)
         // Option alone opens Sound or Displays settings: macOS does that.
-        if option && !shift { return false }
+        if option && !shift { return (false, nil) }
         let fine = option && shift
 
         switch press.key {
         case .volumeUp, .volumeDown, .mute:
-            guard let device = SystemVolume.defaultOutput(), SystemVolume.canSetVolume(of: device) else { return false }
-            if press.key == .mute && !SystemVolume.canMute(device) { return false }
-            if press.isDown {
-                changeVolume(press.key, of: device, fine: fine)
-            }
-            return true
+            guard let device = SystemVolume.defaultOutput(), SystemVolume.canSetVolume(of: device) else { return (false, nil) }
+            if press.key == .mute && !SystemVolume.canMute(device) { return (false, nil) }
+            return (true, press.isDown ? changeVolume(press.key, of: device, fine: fine) : nil)
         case .brightnessUp, .brightnessDown:
             guard let display = DisplayBrightness.builtInDisplay,
                   let brightness = DisplayBrightness.brightness(of: display)
-            else { return false }
-            if press.isDown {
-                let level = MediaKey.step(brightness, up: press.key == .brightnessUp, fine: fine)
-                _ = DisplayBrightness.setBrightness(level, of: display)
-                show(.brightness, level: level, isMuted: false)
-            }
-            return true
+            else { return (false, nil) }
+            guard press.isDown else { return (true, nil) }
+            let level = MediaKey.step(brightness, up: press.key == .brightnessUp, fine: fine)
+            _ = DisplayBrightness.setBrightness(level, of: display)
+            return (true, Shown(kind: .brightness, level: level, isMuted: false))
         }
     }
 
     /// Like macOS: Mute toggles; volume keys also unmute.
-    private func changeVolume(_ key: MediaKey, of device: AudioDeviceID, fine: Bool) {
+    private static func changeVolume(_ key: MediaKey, of device: AudioDeviceID, fine: Bool) -> Shown {
         let volume = SystemVolume.volume(of: device) ?? 0
         var muted = SystemVolume.isMuted(device) ?? false
         var level = volume
@@ -125,51 +181,14 @@ final class HUDModule: IslandModule {
                 _ = SystemVolume.setMuted(false, of: device)
             }
         }
-        show(.volume, level: level, isMuted: muted)
-    }
-
-    private func show(_ kind: HUDModel.Kind, level: Float, isMuted: Bool) {
-        model.kind = kind
-        model.level = Double(level)
-        model.isMuted = isMuted
-        activities.publish(LiveActivity(
-            id: id,
-            moduleID: id,
-            priority: Self.priority,
-            expiresAt: .now.addingTimeInterval(Self.duration)
-        ))
-    }
-
-    // MARK: - Access
-
-    private func startTap() {
-        guard !tap.isRunning else { return }
-        if !tap.start() {
-            Log.hud.notice("No Accessibility access: volume and brightness keys are left to macOS")
-        }
-    }
-
-    /// The notification comes before the new access applies: try again
-    /// shortly after.
-    private func accessChanged() {
-        retryTask?.cancel()
-        retryTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1))
-            guard let self, !Task.isCancelled else { return }
-            if !AccessibilityPermission.isTrusted {
-                self.tap.stop()
-            }
-            self.startTap()
-        }
+        return Shown(kind: .volume, level: level, isMuted: muted)
     }
 }
 
 @MainActor
 @Observable
 final class HUDModel {
-    enum Kind {
-        case volume, brightness
-    }
+    typealias Kind = HUDKind
 
     var kind = Kind.volume
     /// 0…1.
