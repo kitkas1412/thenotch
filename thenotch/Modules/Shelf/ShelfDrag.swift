@@ -11,7 +11,8 @@ import os
 /// SwiftUI's `onDrag` only offers a copy and never says how the drag
 /// ended. Here the destination may move the file (Finder does on the same
 /// volume, like Cut + Paste; ⌘ forces a move across volumes, ⌥ a copy) and
-/// we learn the operation, so a moved file leaves the shelf too.
+/// we learn the operation, so a file dropped anywhere leaves the shelf
+/// (`Outcome`).
 @MainActor
 enum ShelfDrag {
     /// Keeps the current drag's source alive until the drag ends.
@@ -47,9 +48,20 @@ enum ShelfDrag {
         return true
     }
 
-    /// Whether the file left its place: moved elsewhere, or dropped on the Trash.
-    static func fileLeft(after operation: NSDragOperation) -> Bool {
-        !operation.isDisjoint(with: [.move, .delete])
+    /// How a drag out of the shelf ended.
+    enum Outcome: Equatable {
+        /// Cancelled, or the destination refused it: the file stays.
+        case none
+        /// Moved elsewhere, or dropped on the Trash: the file left its place.
+        case moved
+        /// Copied (Finder on another disk) or taken by an app (a browser
+        /// upload, a Mail attachment…): the file is still where it was.
+        case copied
+    }
+
+    static func outcome(of operation: NSDragOperation) -> Outcome {
+        if operation.isEmpty { return .none }
+        return operation.isDisjoint(with: [.move, .delete]) ? .copied : .moved
     }
 
     private final class Source: NSObject, NSDraggingSource {

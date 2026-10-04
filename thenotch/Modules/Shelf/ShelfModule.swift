@@ -25,6 +25,8 @@ final class ShelfModule: FileDropReceiving {
     private var isObservingLifetime = false
     private var expiryTask: Task<Void, Never>?
     private var terminationObserver: NSObjectProtocol?
+    /// Items leaving now keep their owned files (see `onDraggedOut`).
+    private var keepsOwnedFiles = false
 
     init(
         activities: ActivityCenter,
@@ -37,7 +39,8 @@ final class ShelfModule: FileDropReceiving {
         self.filesDirectory = filesDirectory
         store = ShelfStore(persistence: persistence)
         store.onRemove = { [weak self] items in
-            self?.deleteOwnedFiles(of: items)
+            guard let self, !self.keepsOwnedFiles else { return }
+            self.deleteOwnedFiles(of: items)
         }
     }
 
@@ -120,10 +123,16 @@ final class ShelfModule: FileDropReceiving {
                 self?.store.remove(item.id)
                 self?.changed()
             },
-            onMovedOut: { [weak self] item in
-                Log.drop.notice("Shelf file was moved out; removing it from the shelf")
-                self?.store.remove(item.id)
-                self?.changed()
+            onDraggedOut: { [weak self] item, outcome in
+                guard let self else { return }
+                Log.drop.notice("Shelf file was dropped elsewhere (\(String(describing: outcome), privacy: .public)); removing it from the shelf")
+                // A copy was dropped: the app may still be reading the
+                // file (a browser uploads it after the drop), so an owned
+                // file is left for the cleanup at the next launch.
+                self.keepsOwnedFiles = outcome == .copied
+                self.store.remove(item.id)
+                self.keepsOwnedFiles = false
+                self.changed()
             },
             onClear: { [weak self] in
                 self?.store.removeAll()
@@ -188,7 +197,7 @@ final class ShelfModule: FileDropReceiving {
     }
 
     /// Deletes saved files no shelf item refers to: dropped on the AirDrop
-    /// zone, or left over after a crash. Only folders from before `date`:
+    /// zone, dragged out to an app, or left over after a crash. Only folders from before `date`:
     /// a file dropped since may not have reached the shelf yet. Runs in the
     /// background.
     private func deleteOrphanedFiles(createdBefore date: Date) {

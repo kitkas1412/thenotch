@@ -211,15 +211,19 @@ struct ShelfPersistenceTests {
 
 @MainActor
 struct ShelfDragTests {
-    @Test func movedOrTrashedFilesLeaveTheShelf() {
-        #expect(ShelfDrag.fileLeft(after: .move))
-        #expect(ShelfDrag.fileLeft(after: .delete))
-        #expect(ShelfDrag.fileLeft(after: [.move, .generic]))
+    @Test func movedOrTrashedFilesLeftTheirPlace() {
+        #expect(ShelfDrag.outcome(of: .move) == .moved)
+        #expect(ShelfDrag.outcome(of: .delete) == .moved)
+        #expect(ShelfDrag.outcome(of: [.move, .generic]) == .moved)
     }
 
-    @Test func copiedOrCancelledFilesStay() {
-        #expect(!ShelfDrag.fileLeft(after: .copy))
-        #expect(!ShelfDrag.fileLeft(after: .generic))
-        #expect(!ShelfDrag.fileLeft(after: []))
+    @Test func filesTakenByAnAppAreCopies() {
+        #expect(ShelfDrag.outcome(of: .copy) == .copied)
+        #expect(ShelfDrag.outcome(of: .generic) == .copied)
+        #expect(ShelfDrag.outcome(of: .link) == .copied)
+    }
+
+    @Test func cancelledDragsChangeNothing() {
+        #expect(ShelfDrag.outcome(of: []) == .none)
     }
 }
