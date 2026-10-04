@@ -6,6 +6,10 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Checks for updates once a day from the first launch, instead of asking on the second launch whether to. Turn it off in Settings › Updates; if you already chose there or in that prompt, your choice is kept.
+
 ## [0.4.0] - 2026-10-04
 
 ### Changed

@@ -31,7 +31,7 @@ thenotch lives in the menu bar (capsule icon) and has no Dock icon. Use that men
 
 ### Updating
 
-From 0.3.0 on, thenotch updates itself with [Sparkle](https://sparkle-project.org): menu bar icon › **Check for Updates…**, or let it check once a day (it asks on the second launch; change it in Settings › Updates). Updates come from this repository's releases and are installed only if they're signed with the project's key. Versions before 0.3.0 need one manual update: download the new DMG and drag thenotch into Applications, replacing the old copy. Your shelf and settings are kept.
+From 0.3.0 on, thenotch updates itself with [Sparkle](https://sparkle-project.org): menu bar icon › **Check for Updates…**, or let it check once a day, which it does from the first launch (turn it off in Settings › Updates). Updates come from this repository's releases and are installed only if they're signed with the project's key. Versions before 0.3.0 need one manual update: download the new DMG and drag thenotch into Applications, replacing the old copy. Your shelf and settings are kept.
 
 To verify a download, compare it with `SHA256SUMS.txt` from the release: `shasum -a 256 thenotch-<version>.dmg`.
 

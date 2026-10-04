@@ -13,5 +13,12 @@
 	     (GitHub secret SPARKLE_PRIVATE_KEY). See README › Releasing. -->
 	<key>SUPublicEDKey</key>
 	<string>ltwcvhSTeazXrudTj8QxC9zDerfydWqW+En8U/xslSA=</string>
+	<!-- Sparkle: check for updates once a day from the first launch,
+	     instead of asking on the second one. Settings › Updates turns it
+	     off; a choice made there (or earlier, in Sparkle's prompt) wins. -->
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>
