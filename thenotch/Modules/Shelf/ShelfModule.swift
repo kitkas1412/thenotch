@@ -43,8 +43,15 @@ final class ShelfModule: FileDropReceiving {
 
     func start() {
         isRunning = true
-        deleteOrphanedFiles()
-        prune()
+        let startedAt = Date.now
+        // Read the saved shelf without holding up launch; housekeeping
+        // needs it.
+        Task { [weak self] in
+            await self?.store.load()
+            guard let self, self.isRunning else { return }
+            self.deleteOrphanedFiles(createdBefore: startedAt)
+            self.prune()
+        }
         observeLifetime()
         // Saves are delayed; don't lose the last change when quitting.
         terminationObserver = NotificationCenter.default.addObserver(
@@ -181,12 +188,21 @@ final class ShelfModule: FileDropReceiving {
     }
 
     /// Deletes saved files no shelf item refers to: dropped on the AirDrop
-    /// zone, or left over after a crash.
-    private func deleteOrphanedFiles() {
+    /// zone, or left over after a crash. Only folders from before `date`:
+    /// a file dropped since may not have reached the shelf yet. Runs in the
+    /// background.
+    private func deleteOrphanedFiles(createdBefore date: Date) {
         let kept = Set(store.items.filter(\.isOwned).map { $0.url.deletingLastPathComponent().standardizedFileURL.path })
-        let folders = (try? FileManager.default.contentsOfDirectory(at: filesDirectory, includingPropertiesForKeys: nil)) ?? []
-        for folder in folders where !kept.contains(folder.standardizedFileURL.path) {
-            try? FileManager.default.removeItem(at: folder)
+        let directory = filesDirectory
+        Task.detached(priority: .utility) {
+            let fileManager = FileManager.default
+            let folders = (try? fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.creationDateKey])) ?? []
+            for folder in folders where !kept.contains(folder.standardizedFileURL.path) {
+                let created = (try? folder.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? .distantPast
+                if created < date {
+                    try? fileManager.removeItem(at: folder)
+                }
+            }
         }
     }
 

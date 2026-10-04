@@ -64,6 +64,16 @@ struct ShelfPersistence {
         }
     }
 
+    /// `load()` in the background, after any earlier save: resolving
+    /// bookmarks touches the disk for every file.
+    func loadInBackground() async -> [ShelfItem] {
+        await withCheckedContinuation { continuation in
+            Self.queue.async {
+                continuation.resume(returning: load())
+            }
+        }
+    }
+
     /// Saved items whose file can still be found.
     func load() -> [ShelfItem] {
         guard let data = try? Data(contentsOf: fileURL),

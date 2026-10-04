@@ -99,49 +99,56 @@ struct ShelfPersistenceTests {
         return url
     }
 
-    @Test func itemsSurviveARelaunch() throws {
+    /// A store with the saved shelf read, as after launch.
+    func loadedStore() async -> ShelfStore {
+        let store = ShelfStore(persistence: persistence)
+        await store.load()
+        return store
+    }
+
+    @Test func itemsSurviveARelaunch() async throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         let a = try makeFile("a.txt")
         let b = try makeFile("b.png")
-        let store = ShelfStore(persistence: persistence)
+        let store = await loadedStore()
         store.add([DroppedFile(url: a, isOwned: false), DroppedFile(url: b, isOwned: true)])
         store.saveNow()
 
-        let reloaded = ShelfStore(persistence: persistence).items
+        let reloaded = await loadedStore().items
         #expect(reloaded.map(\.id) == store.items.map(\.id))
         #expect(reloaded.map(\.isOwned) == [false, true])
         #expect(reloaded.map(\.url.standardizedFileURL.path) == [a, b].map(\.standardizedFileURL.path))
         #expect(reloaded.map(\.addedAt.timeIntervalSince1970) == store.items.map(\.addedAt.timeIntervalSince1970))
     }
 
-    @Test func bookmarksFollowAMovedFile() throws {
+    @Test func bookmarksFollowAMovedFile() async throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         let a = try makeFile("a.txt")
-        let store = ShelfStore(persistence: persistence)
+        let store = await loadedStore()
         store.add([DroppedFile(url: a, isOwned: false)])
         store.saveNow()
 
         let moved = directory.appendingPathComponent("renamed.txt")
         try FileManager.default.moveItem(at: a, to: moved)
-        #expect(ShelfStore(persistence: persistence).items.first?.name == "renamed.txt")
+        #expect(await loadedStore().items.first?.name == "renamed.txt")
     }
 
-    @Test func deletedFilesAreDroppedOnLoad() throws {
+    @Test func deletedFilesAreDroppedOnLoad() async throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         let a = try makeFile("a.txt")
         let b = try makeFile("b.txt")
-        let store = ShelfStore(persistence: persistence)
+        let store = await loadedStore()
         store.add([DroppedFile(url: a, isOwned: false), DroppedFile(url: b, isOwned: false)])
         store.saveNow()
 
         try FileManager.default.removeItem(at: a)
-        #expect(ShelfStore(persistence: persistence).items.map(\.name) == ["b.txt"])
+        #expect(await loadedStore().items.map(\.name) == ["b.txt"])
     }
 
     @Test func changesAreSavedAfterADelay() async throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         let a = try makeFile("a.txt")
-        let store = ShelfStore(persistence: persistence)
+        let store = await loadedStore()
         store.add([DroppedFile(url: a, isOwned: false)])
         #expect(persistence.load().isEmpty)
 
@@ -155,16 +162,36 @@ struct ShelfPersistenceTests {
         #expect(saved.map(\.id) == store.items.map(\.id))
     }
 
-    @Test func saveNowWithoutChangesKeepsTheFile() throws {
+    @Test func saveNowWithoutChangesKeepsTheFile() async throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         let a = try makeFile("a.txt")
-        let first = ShelfStore(persistence: persistence)
+        let first = await loadedStore()
         first.add([DroppedFile(url: a, isOwned: false)])
         first.saveNow()
 
         // Loading isn't a change: nothing is pending, nothing is rewritten.
-        ShelfStore(persistence: persistence).saveNow()
+        await loadedStore().saveNow()
         #expect(persistence.load().count == 1)
+    }
+
+    @Test func nothingIsSavedBeforeLoading() async throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let a = try makeFile("a.txt")
+        let b = try makeFile("b.txt")
+        let first = await loadedStore()
+        first.add([DroppedFile(url: a, isOwned: false)])
+        first.saveNow()
+
+        // A file dropped while the saved shelf is still being read.
+        let store = ShelfStore(persistence: persistence)
+        store.add([DroppedFile(url: b, isOwned: false)])
+        store.saveNow()
+        #expect(persistence.load().map(\.name) == ["a.txt"])
+
+        await store.load()
+        #expect(store.items.map(\.name) == ["b.txt", "a.txt"])
+        store.saveNow()
+        #expect(persistence.load().map(\.name) == ["b.txt", "a.txt"])
     }
 
     @Test func missingOrCorruptFileLoadsEmpty() throws {
