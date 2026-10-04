@@ -27,7 +27,7 @@ CI (`.github/workflows/ci.yml`) runs the test command on every push to `main` an
 
 Keep testable logic as pure functions taking plain values (see `NotchGeometry.notchRect(frame:visibleFrame:topInset:leftArea:rightArea:)`), with a thin `NSScreen` wrapper — `NSScreen` can't be constructed in tests.
 
-Run the app from Xcode (⌘R). Because of `LSUIElement`, it has no Dock icon or main window — quit it from its menu bar icon (capsule) → Quit, or `killall thenotch`.
+Run the app from Xcode (⌘R). Because of `LSUIElement`, it has no Dock icon or main window — quit it from its menu bar icon (capsule) → Quit, or `killall thenotch`. Run one copy at a time (a copy started with `open` and one from Xcode both tap keys, watch Notification Center and listen on the Claude Code socket). With Volume & Brightness on, a copy paused in the debugger (a breakpoint, a crash) holds up every key press and pointer event for about a second, system-wide: its key tap can't answer. Stop or quit it.
 
 ## Architecture
 
