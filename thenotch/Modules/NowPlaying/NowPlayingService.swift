@@ -25,6 +25,8 @@ final class NowPlayingService {
     /// Accent color from `artwork` (`ArtworkTint`); `nil` for gray artwork
     /// or none.
     private(set) var artworkTint: NSColor?
+    /// Icon of the app owning `info`, shown when there's no artwork.
+    private(set) var appIcon: NSImage?
 
     /// Called whenever `info` changes (for publishing live activities).
     @ObservationIgnored var onInfoChange: ((NowPlayingInfo?) -> Void)?
@@ -33,6 +35,8 @@ final class NowPlayingService {
     @ObservationIgnored private var deniedSources: Set<NowPlayingInfo.Source> = []
     /// Apps a script has succeeded on, i.e. Automation is granted.
     @ObservationIgnored private var grantedSources: Set<NowPlayingInfo.Source> = []
+    /// Looked up once per app: `NSWorkspace` reads it from disk.
+    @ObservationIgnored private var appIcons: [NowPlayingInfo.Source: NSImage] = [:]
     @ObservationIgnored private var artworkCache: [URL: (image: NSImage, tint: NSColor?)] = [:]
     @ObservationIgnored private var artworkTask: Task<Void, Never>?
     @ObservationIgnored private var observers: [(NotificationCenter, NSObjectProtocol)] = []
@@ -205,6 +209,9 @@ final class NowPlayingService {
     private func recompute() {
         let preferred = NowPlayingInfo.preferred(Array(tracks.values))
         if preferred != info {
+            if preferred?.source != info?.source {
+                appIcon = preferred.flatMap { icon(of: $0.source) }
+            }
             info = preferred
             loadArtwork(for: preferred?.artworkURL)
             onInfoChange?(preferred)
@@ -213,6 +220,16 @@ final class NowPlayingService {
         if denied != permissionDenied {
             permissionDenied = denied
         }
+    }
+
+    private func icon(of source: NowPlayingInfo.Source) -> NSImage? {
+        if let icon = appIcons[source] {
+            return icon
+        }
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: source.bundleID) else { return nil }
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        appIcons[source] = icon
+        return icon
     }
 
     /// Side length artwork is downscaled to (2× the largest display size).

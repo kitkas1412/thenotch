@@ -24,6 +24,7 @@ final class ShelfModule: FileDropReceiving {
     private var isActivityPublished = false
     private var isObservingLifetime = false
     private var expiryTask: Task<Void, Never>?
+    private var terminationObserver: NSObjectProtocol?
 
     init(
         activities: ActivityCenter,
@@ -45,10 +46,25 @@ final class ShelfModule: FileDropReceiving {
         deleteOrphanedFiles()
         prune()
         observeLifetime()
+        // Saves are delayed; don't lose the last change when quitting.
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.store.saveNow()
+            }
+        }
     }
 
     func stop() {
         isRunning = false
+        store.saveNow()
+        if let terminationObserver {
+            NotificationCenter.default.removeObserver(terminationObserver)
+        }
+        terminationObserver = nil
         expiryTask?.cancel()
         expiryTask = nil
         activities.remove(id: id)

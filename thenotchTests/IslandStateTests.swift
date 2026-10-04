@@ -123,3 +123,13 @@ struct IslandStateTests {
         #expect(state.expandedSize.height <= IslandController.panelSize.height)
     }
 }
+
+struct AmbientConditionsTests {
+    @Test func animatesOnlyWhenSeenAndNotSavingPower() {
+        #expect(AmbientConditions().allowsAnimation)
+        #expect(!AmbientConditions(isDisplayAsleep: true).allowsAnimation)
+        #expect(!AmbientConditions(isScreenLocked: true).allowsAnimation)
+        #expect(!AmbientConditions(isSessionInactive: true).allowsAnimation)
+        #expect(!AmbientConditions(isLowPowerMode: true).allowsAnimation)
+    }
+}

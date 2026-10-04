@@ -19,23 +19,26 @@ struct CompactArtworkView: View {
     }
 }
 
-/// Animated bars in the right wing; still while paused.
+/// Animated bars in the right wing; still while paused, and while nobody
+/// can see them or Low Power Mode is on (`allowsAmbientAnimation`).
 struct LevelMeterView: View {
     var service: NowPlayingService
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.allowsAmbientAnimation) private var allowsAmbientAnimation
 
     var body: some View {
         let playing = service.info?.isPlaying == true
         Group {
-            if playing && !reduceMotion {
+            if playing && !reduceMotion && allowsAmbientAnimation {
                 // Redraws a few times per second only while playing.
                 TimelineView(.periodic(from: .now, by: IslandStyle.levelMeterTick)) { context in
                     bars { Self.height(bar: $0, at: context.date) }
                         .animation(.easeInOut(duration: IslandStyle.levelMeterTick), value: context.date)
                 }
             } else {
-                // Paused, or Reduce Motion: still bars, taller while playing.
+                // Paused, Reduce Motion, or no animation now: still bars,
+                // taller while playing.
                 bars { bar in playing ? [8, 12, 6, 10][bar] : 3 }
             }
         }
@@ -293,7 +296,7 @@ struct ArtworkView: View {
             if let artwork = service.artwork {
                 Image(nsImage: artwork)
                     .resizable()
-            } else if let icon = appIcon {
+            } else if let icon = service.appIcon {
                 Image(nsImage: icon)
                     .resizable()
             } else {
@@ -303,12 +306,5 @@ struct ArtworkView: View {
         }
         .aspectRatio(contentMode: .fill)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-    }
-
-    private var appIcon: NSImage? {
-        guard let bundleID = service.info?.source.bundleID,
-              let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
-        else { return nil }
-        return NSWorkspace.shared.icon(forFile: url.path)
     }
 }

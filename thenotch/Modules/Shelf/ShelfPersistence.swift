@@ -10,6 +10,10 @@ import Foundation
 struct ShelfPersistence {
     let fileURL: URL
 
+    /// Saves run here, in order: creating bookmarks touches the disk for
+    /// every file, which mustn't block the main thread.
+    private static let queue = DispatchQueue(label: "me.kitkas1412.thenotch.shelf-persistence", qos: .utility)
+
     /// `~/Library/Application Support/<bundle id>/Shelf.json`
     static var standard: ShelfPersistence {
         ShelfPersistence(fileURL: URL.applicationSupportDirectory
@@ -26,7 +30,23 @@ struct ShelfPersistence {
         var isOwned: Bool
     }
 
-    func save(_ items: [ShelfItem]) {
+    /// Saves `items` in the background, after any earlier save.
+    func saveInBackground(_ items: [ShelfItem]) {
+        Self.queue.async { save(items) }
+    }
+
+    /// Saves `items` and returns once they're written, after any earlier
+    /// background save (so it can't overwrite them). For quitting.
+    func saveNow(_ items: [ShelfItem]) {
+        Self.queue.sync { save(items) }
+    }
+
+    /// Returns once earlier background saves are written.
+    func waitForSaves() {
+        Self.queue.sync {}
+    }
+
+    private func save(_ items: [ShelfItem]) {
         let records = items.map { item in
             Record(
                 id: item.id,
