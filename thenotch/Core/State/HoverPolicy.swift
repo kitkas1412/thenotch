@@ -5,14 +5,25 @@
 
 import CoreGraphics
 
-/// Decides when the island opens or closes from the pointer position.
+/// Decides from the pointer position when the compact island grows under
+/// it (hover), and when a file drag opens or closes it.
 /// Pure math in screen coordinates so it can be unit tested.
 ///
-/// The exit region is larger than the entry region (hysteresis), so the
-/// island doesn't flicker open/closed when the pointer sits on an edge.
+/// Hovering never opens the island (a click does, and only a click outside,
+/// a click on the notch or Esc closes it). Only a file drag opens and closes
+/// it by position.
+///
+/// Every region has hysteresis (the exit region is larger than the entry
+/// region), so the island doesn't flicker at an edge.
 enum HoverPolicy {
+    /// Decision for a file drag (`dragAction`).
     enum Action: Equatable {
         case open, close, none
+    }
+
+    /// Decision for the compact island's hover state (`hoverAction`).
+    enum HoverAction: Equatable {
+        case hover, unhover, none
     }
 
     /// Tolerance around the notch that counts as "entering".
@@ -39,9 +50,79 @@ enum HoverPolicy {
         topAnchoredRect(notch: notch, size: expandedSize, padding: exitPadding)
     }
 
-    static func action(
+    /// Compact island grown by `scale` (anchored at the top) plus
+    /// `entryPadding`: the pointer leaves the hover state only outside it, so
+    /// the island growing doesn't make the pointer fall off its edge.
+    static func hoverExitRect(notch: CGRect, compactSize: CGSize, scale: CGFloat) -> CGRect {
+        topAnchoredRect(notch: notch, size: grownSize(compactSize, scale: scale), padding: entryPadding)
+    }
+
+    /// `size` scaled by `scale`.
+    static func grownSize(_ size: CGSize, scale: CGFloat) -> CGSize {
+        CGSize(width: size.width * scale, height: size.height * scale)
+    }
+
+    /// Hover state for the compact island: starts inside `entryRect`, ends
+    /// outside `hoverExitRect`.
+    static func hoverAction(
+        isHovering: Bool,
+        pointer: CGPoint,
+        notch: CGRect,
+        compactSize: CGSize,
+        scale: CGFloat
+    ) -> HoverAction {
+        if isHovering {
+            return hoverExitRect(notch: notch, compactSize: compactSize, scale: scale).contains(pointer) ? .none : .unhover
+        }
+        return entryRect(notch: notch, compactSize: compactSize).contains(pointer) ? .hover : .none
+    }
+
+    /// Whether `pointer` is over an island of `size` centered on the notch
+    /// and hanging from the top of the screen (no padding). Used to decide
+    /// clicks: on the island, or outside it.
+    static func isOnIsland(pointer: CGPoint, notch: CGRect, size: CGSize) -> Bool {
+        topAnchoredRect(notch: notch, size: size, padding: 0).contains(pointer)
+    }
+
+    /// What a left click does.
+    enum ClickAction: Equatable {
+        case open, close, none
+    }
+
+    /// Decision for a left click at `pointer`.
+    ///
+    /// Open island: `isBlocked` (a drag or a menu) ignores it; a click
+    /// outside the island, or on the notch itself (free of content), closes
+    /// it; any other click is the content's (`.none`).
+    /// Compact island: a click opens it only while `isHovering` and the
+    /// pointer is still within the grown island (`hoverExitRect`), and not
+    /// `isBlocked`; otherwise `.none`.
+    static func clickAction(
         isExpanded: Bool,
-        isDragging: Bool = false,
+        isHovering: Bool,
+        isBlocked: Bool,
+        pointer: CGPoint,
+        notch: CGRect,
+        compactSize: CGSize,
+        expandedSize: CGSize,
+        scale: CGFloat
+    ) -> ClickAction {
+        guard !isBlocked else { return .none }
+        if isExpanded {
+            if !isOnIsland(pointer: pointer, notch: notch, size: expandedSize)
+                || isOnIsland(pointer: pointer, notch: notch, size: notch.size) {
+                return .close
+            }
+            return .none
+        }
+        guard isHovering else { return .none }
+        return hoverExitRect(notch: notch, compactSize: compactSize, scale: scale).contains(pointer) ? .open : .none
+    }
+
+    /// Decision for a file drag: opens within `dragEntryRect`, and an open
+    /// island stays open within its `exitRect` or the drag entry region.
+    static func dragAction(
+        isExpanded: Bool,
         pointer: CGPoint,
         notch: CGRect,
         compactSize: CGSize,
@@ -52,13 +133,10 @@ enum HoverPolicy {
             // open it: the island (the shelf's stack) can be narrower than
             // the drag entry region around wide wings.
             let staysOpen = exitRect(notch: notch, expandedSize: expandedSize).contains(pointer)
-                || (isDragging && dragEntryRect(notch: notch, compactSize: compactSize).contains(pointer))
+                || dragEntryRect(notch: notch, compactSize: compactSize).contains(pointer)
             return staysOpen ? .none : .close
         }
-        let entry = isDragging
-            ? dragEntryRect(notch: notch, compactSize: compactSize)
-            : entryRect(notch: notch, compactSize: compactSize)
-        return entry.contains(pointer) ? .open : .none
+        return dragEntryRect(notch: notch, compactSize: compactSize).contains(pointer) ? .open : .none
     }
 
     /// The open island can shrink under the pointer: clicking the shelf's

@@ -16,9 +16,6 @@ final class IslandController {
     /// SwiftUI content inside resizes; animating the window frame stutters.
     static let panelSize = CGSize(width: 640, height: 320)
 
-    /// Pointer must rest in the entry region this long before opening.
-    static let openDelay: Duration = .milliseconds(150)
-
     let state = IslandState()
     private let settings: AppSettings
     private var panel: IslandPanel?
@@ -31,7 +28,12 @@ final class IslandController {
     /// pointer moving onto it must not close the island under it.
     private var isTrackingMenu = false
     private var mouseMonitors: [Any] = []
-    private var pendingOpen: Task<Void, Never>?
+    /// Local (clicks on our panel) and global (clicks elsewhere, Esc)
+    /// monitors, installed in `installMouseMonitors` / while expanded.
+    private var escapeMonitor: Any?
+    private var accessibilityObserver: NSObjectProtocol?
+    /// A hover re-evaluation after closing is already queued.
+    private var isHoverRefreshScheduled = false
     /// Drag pasteboard `changeCount` when the left mouse button went down,
     /// while it's held; see `FileDrag`.
     private var dragChangeCountAtMouseDown: Int?
@@ -47,7 +49,9 @@ final class IslandController {
         /// Ends the presentation when the activity expires; an activity
         /// without expiry (a ringing call) lasts until it's removed.
         var closeTask: Task<Void, Never>?
-        var hasPointerEntered = false
+        /// The user clicked the island: it's theirs now and stays open
+        /// when the activity ends.
+        var isOwnedByUser = false
     }
 
     /// How long the island stays a drop target after the mouse button is
@@ -95,6 +99,8 @@ final class IslandController {
 
         observeMenus()
         observeAmbientConditions()
+        observeExpandableContent()
+        observeAccessibility()
 
         // Displays plugged/unplugged, resolution or arrangement changed.
         screenObserver = NotificationCenter.default.addObserver(
@@ -122,6 +128,40 @@ final class IslandController {
             let module = kind.makeModule(activities: state.activities, settings: settings)
             module.start()
             return module
+        }
+        // The last module with content may be gone under a hovering pointer.
+        mouseMoved()
+    }
+
+    /// Re-evaluates hover when what the island can show changes (a module's
+    /// content or the activities come and go) while the pointer rests on it.
+    private func observeExpandableContent() {
+        withObservationTracking {
+            _ = state.expandedModule
+        } onChange: { [weak self] in
+            // Fires before the change lands: look after it.
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.mouseMoved()
+                    self.observeExpandableContent()
+                }
+            }
+        }
+    }
+
+    /// Esc needs Accessibility: start its monitor if access is granted
+    /// while the island is open.
+    private func observeAccessibility() {
+        accessibilityObserver = DistributedNotificationCenter.default().addObserver(
+            forName: AccessibilityPermission.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.state.isExpanded else { return }
+                self.startEscapeMonitor()
+            }
         }
     }
 
@@ -159,7 +199,7 @@ final class IslandController {
                 MainActor.assumeIsolated {
                     guard let self else { return }
                     self.isTrackingMenu = false
-                    // Close now if the pointer left while the menu was up.
+                    // Update the hover state if the pointer moved meanwhile.
                     self.mouseMoved()
                 }
             },
@@ -207,7 +247,15 @@ final class IslandController {
 
     // MARK: - Hover
 
+    private func removeMouseMonitors() {
+        for monitor in mouseMonitors {
+            NSEvent.removeMonitor(monitor)
+        }
+        mouseMonitors = []
+    }
+
     private func installMouseMonitors() {
+        removeMouseMonitors()
         // Global: pointer moves while other apps receive the events (the
         // panel ignores the mouse while compact). No permission needed for
         // mouse events.
@@ -228,41 +276,141 @@ final class IslandController {
         }) {
             mouseMonitors.append(drags)
         }
+        // Clicks on other apps' windows (and the menu bar): close the open
+        // island when they're outside it. Clicks on our own panel arrive
+        // through the local monitor below.
+        if let clicks = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown, handler: { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.clickedElsewhere()
+            }
+        }) {
+            mouseMonitors.append(clicks)
+        }
+        // Clicks on our own panel, which accepts the mouse while the compact
+        // island is hovered and while it's open. The event is consumed when
+        // it opens or closes the island.
+        if let local = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown, handler: { [weak self] event in
+            MainActor.assumeIsolated {
+                guard let self, event.window === self.panel else { return event }
+                return self.clickedPanel() ? nil : event
+            }
+        }) {
+            mouseMonitors.append(local)
+        }
         // Over our own panel (once it accepts the mouse) the global monitor
         // sees nothing; IslandHostingView's tracking area reports those moves.
     }
 
-    private func mouseMoved() {
-        // Dragging a file out of the island, or a menu is open: stay open
-        // until it's done.
-        if state.isDraggingOut || isTrackingMenu { return }
-        // Opened by itself: the pointer elsewhere doesn't close it, the end
-        // of the activity does — until the pointer comes over it.
-        if presentation != nil, state.isExpanded {
-            if HoverPolicy.exitRect(notch: notch, expandedSize: state.expandedSize).contains(NSEvent.mouseLocation) {
-                presentation?.hasPointerEntered = true
-            } else if presentation?.hasPointerEntered == false {
-                return
-            }
-        }
-        let action = HoverPolicy.action(
+    /// Whether something keeps the island from reacting to the pointer: a
+    /// file is being dragged in or out, or one of our menus is open.
+    private var isInteractionBlocked: Bool {
+        state.isDraggingOut || state.isDraggingFiles || isTrackingMenu
+    }
+
+    /// What a click at the pointer does now (`HoverPolicy.clickAction`).
+    private func clickAction() -> HoverPolicy.ClickAction {
+        HoverPolicy.clickAction(
             isExpanded: state.isExpanded,
+            isHovering: state.isHovering,
+            isBlocked: isInteractionBlocked,
             pointer: NSEvent.mouseLocation,
             notch: notch,
             compactSize: state.compactSize,
-            expandedSize: exitSize()
+            expandedSize: state.expandedSize,
+            scale: IslandStyle.hoverScale
         )
-        switch action {
-        case .open:
-            scheduleOpen()
+    }
+
+    /// A click on another app (or the menu bar) while the island is open.
+    private func clickedElsewhere() {
+        guard state.isExpanded, clickAction() == .close else { return }
+        close(animated: true)
+    }
+
+    /// A click on the panel. Returns whether it was consumed.
+    ///
+    /// The panel only accepts the mouse while hovered or open. `hitTest`
+    /// can't make it click-through (a window that takes the event swallows
+    /// it even if no view does), so what is outside the island's shape but
+    /// inside the panel is handled here: while open, such a click closes the
+    /// island (as does one on the notch); while hovered, the hover region
+    /// (island plus a few points) counts as the island. A hovered click
+    /// that can't open (nothing left to show) ends the hover. The panel
+    /// already accepted this mouse-down, so a click with a stale hover is
+    /// swallowed once; setHovering(false) makes the panel click-through
+    /// again for the next click.
+    private func clickedPanel() -> Bool {
+        let wasExpanded = state.isExpanded
+        switch clickAction() {
         case .close:
             close(animated: true)
+            return true
+        case .open:
+            open()
+            if state.isExpanded { return true }
+            setHovering(false)
+            return false
         case .none:
-            // Left the entry region before the delay elapsed.
-            if !state.isExpanded {
-                cancelPendingOpen()
+            if wasExpanded {
+                // The user's now: it stays open when the activity ends.
+                presentation?.isOwnedByUser = true
+            } else {
+                setHovering(false)
+            }
+            return false
+        }
+    }
+
+    /// Esc closes the open island. The panel never becomes key, so a local
+    /// key monitor would never fire; a global one needs Accessibility, so
+    /// without it Esc does nothing (clicks still close the island).
+    private func startEscapeMonitor() {
+        guard escapeMonitor == nil, AccessibilityPermission.isTrusted else { return }
+        escapeMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard event.keyCode == 53 else { return }
+            MainActor.assumeIsolated {
+                guard let self, self.state.isExpanded, !self.isInteractionBlocked else { return }
+                self.close(animated: true)
             }
         }
+    }
+
+    private func stopEscapeMonitor() {
+        if let escapeMonitor {
+            NSEvent.removeMonitor(escapeMonitor)
+        }
+        escapeMonitor = nil
+    }
+
+    /// Tracks the pointer over the compact island: it grows (hover) and
+    /// takes the mouse so a click opens it. Never opens or closes by itself.
+    private func mouseMoved() {
+        guard !state.isExpanded else { return }
+        let canHover = state.expandedModule != nil && !isInteractionBlocked
+        let action = HoverPolicy.hoverAction(
+            isHovering: state.isHovering,
+            pointer: NSEvent.mouseLocation,
+            notch: notch,
+            compactSize: state.compactSize,
+            scale: IslandStyle.hoverScale
+        )
+        switch action {
+        case .hover where canHover:
+            setHovering(true)
+        case .unhover:
+            setHovering(false)
+        default:
+            // Something now blocks hovering, or has nothing to show.
+            if state.isHovering && !canHover {
+                setHovering(false)
+            }
+        }
+    }
+
+    private func setHovering(_ hovering: Bool) {
+        guard state.isHovering != hovering else { return }
+        state.isHovering = hovering
+        panel?.ignoresMouseEvents = !hovering
     }
 
     /// The open island's size for the exit test, kept larger for a moment
@@ -298,9 +446,8 @@ final class IslandController {
 
     private func mouseDragged() {
         guard let changeCountAtMouseDown = dragChangeCountAtMouseDown, let target = fileDropModule else { return }
-        let action = HoverPolicy.action(
+        let action = HoverPolicy.dragAction(
             isExpanded: state.isExpanded,
-            isDragging: true,
             pointer: NSEvent.mouseLocation,
             notch: notch,
             compactSize: state.compactSize,
@@ -341,7 +488,7 @@ final class IslandController {
     }
 
     /// The drag finished (dropped on the island or elsewhere). The island
-    /// stays open if the pointer is still over it, then closes on hover exit.
+    /// stays open if the pointer is still where it opens, else closes.
     ///
     /// The drop zones must outlive the mouse-up: removing them right away
     /// left the drop, which arrives a moment later, with nowhere to land.
@@ -354,7 +501,7 @@ final class IslandController {
             guard let self, !Task.isCancelled else { return }
             self.pendingDragEnd = nil
             self.state.isDraggingFiles = false
-            self.mouseMoved()
+            self.closeIfDragLeft()
         }
     }
 
@@ -375,34 +522,30 @@ final class IslandController {
         }
     }
 
-    /// Opens after `openDelay` if the pointer is still in the entry region,
-    /// so merely passing over the notch doesn't open the island.
-    private func scheduleOpen() {
-        guard pendingOpen == nil else { return }
-        pendingOpen = Task { [weak self] in
-            try? await Task.sleep(for: Self.openDelay)
-            guard let self, !Task.isCancelled else { return }
-            self.pendingOpen = nil
-            let stillInside = HoverPolicy.entryRect(notch: self.notch, compactSize: self.state.compactSize).contains(NSEvent.mouseLocation)
-            if stillInside {
-                self.open()
-            }
+    /// After a file drag, closes the island if the pointer isn't where the
+    /// drag would keep it open.
+    private func closeIfDragLeft() {
+        guard state.isExpanded, presentation == nil else { return }
+        let action = HoverPolicy.dragAction(
+            isExpanded: true,
+            pointer: NSEvent.mouseLocation,
+            notch: notch,
+            compactSize: state.compactSize,
+            expandedSize: exitSize()
+        )
+        if action == .close {
+            close(animated: true)
         }
-    }
-
-    private func cancelPendingOpen() {
-        pendingOpen?.cancel()
-        pendingOpen = nil
     }
 
     /// Opens on `moduleID`, or on the module `IslandState.expandedModule`
     /// picks.
     private func open(pinning moduleID: String? = nil) {
-        cancelPendingOpen()
         guard !state.isExpanded else { return }
-        // Hovering an island with nothing to show (no music, empty shelf…)
-        // leaves the notch alone; a file drag always pins its module.
+        // An island with nothing to show (no music, empty shelf…) stays
+        // closed; a file drag or a presentation always pins its module.
         guard moduleID != nil || state.expandedModule != nil else { return }
+        state.isHovering = false
         panel?.ignoresMouseEvents = false
         // Keep showing this module while open, even if another activity
         // (e.g. a battery peek) takes over the compact island meanwhile.
@@ -411,6 +554,7 @@ final class IslandController {
             state.mode = .expanded
         }
         state.expandedModule?.islandDidExpand()
+        startEscapeMonitor()
     }
 
     /// Opens the island on the activity's module until it expires. Doesn't
@@ -428,7 +572,7 @@ final class IslandController {
             open(pinning: activity.moduleID)
             guard state.isExpanded else { return }
         }
-        let hasPointerEntered = presentation?.hasPointerEntered ?? false
+        let isOwnedByUser = presentation?.isOwnedByUser ?? false
         presentation?.closeTask?.cancel()
         let closeTask = activity.expiresAt.map { expiresAt in
             let duration = max(expiresAt.timeIntervalSinceNow, 1)
@@ -438,18 +582,16 @@ final class IslandController {
                 self.endPresentation()
             }
         }
-        presentation = Presentation(activityID: activity.id, closeTask: closeTask, hasPointerEntered: hasPointerEntered)
+        presentation = Presentation(activityID: activity.id, closeTask: closeTask, isOwnedByUser: isOwnedByUser)
     }
 
-    /// The presented activity ended: the island closes, unless the pointer
-    /// came over it — from then on, hovering decides.
+    /// The presented activity ended: the island closes, unless the user
+    /// clicked it meanwhile — from then on, they close it.
     private func endPresentation() {
         presentation?.closeTask?.cancel()
-        let hovered = presentation?.hasPointerEntered ?? false
+        let isOwnedByUser = presentation?.isOwnedByUser ?? false
         presentation = nil
-        if hovered {
-            mouseMoved()
-        } else {
+        if !isOwnedByUser {
             close(animated: true)
         }
     }
@@ -457,8 +599,12 @@ final class IslandController {
     private func close(animated: Bool) {
         presentation?.closeTask?.cancel()
         presentation = nil
-        cancelPendingOpen()
-        guard state.isExpanded else { return }
+        stopEscapeMonitor()
+        state.isHovering = false
+        guard state.isExpanded else {
+            panel?.ignoresMouseEvents = true
+            return
+        }
         if animated {
             withAnimation(IslandStyle.closeAnimation) {
                 state.mode = .compact
@@ -472,6 +618,17 @@ final class IslandController {
             module.islandDidCollapse()
         }
         panel?.ignoresMouseEvents = true
+        // The pointer may rest on the notch: show the hover cue without
+        // waiting for it to move.
+        if !isHoverRefreshScheduled {
+            isHoverRefreshScheduled = true
+            DispatchQueue.main.async { [weak self] in
+                MainActor.assumeIsolated {
+                    self?.isHoverRefreshScheduled = false
+                    self?.mouseMoved()
+                }
+            }
+        }
     }
 }
 
