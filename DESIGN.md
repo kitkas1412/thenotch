@@ -125,8 +125,8 @@ Content sits the same `content` margin (24 pt) from the island's **visible** edg
 The same principle applies at a smaller scale.
 
 - **Padding.** Wing content is `compactContent` (20 pt) tall and centered in the notch's height. That leaves `IslandState.compactPadding` = (notch height − 20) / 2, which is 6 pt under a 32 pt notch. The content gets this padding on every side: top, bottom, toward the island's outer edge, and toward the notch.
-- **Wing width.** The width follows the module rather than a fixed value: `compactContentWidth` (default 20; Battery 40 for "100%") plus the padding on both sides.
-- **Snug toward the notch.** Both wings share one width so the island stays centered on the notch. Content narrower than that width, such as "30%" in the battery wing, sits snug against the notch ("don't add padding between content and the TrueDepth camera", HIG Live Activities › Compact presentation); the slack goes to the outer side.
+- **Wing width.** The width follows the module rather than a fixed value: `compactContentWidth` (default 20; Battery 40 for "100%") plus the padding on both sides. The agents' run time grows with its digits ("m:ss", "mm:ss", "h:mm:ss"): 30, 38 or 51 pt (`compactElapsedShort/Medium/Long`), changed by one sleeping task at 10 min and 1 h.
+- **Snug toward the notch.** Both wings share one width so the island stays centered on the notch. Content narrower than that width, such as "30%" in the battery wing, sits snug against the notch ("don't add padding between content and the TrueDepth camera", HIG Live Activities › Compact presentation); the slack goes to the outer side. Exception: in the AI Agents wing the symbol sits at the outer edge (padding equal to the bottom padding) while the elapsed time stays snug to the notch on the other side.
 - **Corners.** With wings, the bottom corners are concentric with the content: `Radius.small` (5) + padding (6) = 11. The bare notch keeps `Radius.compact` (8).
 
 Measured on a rendered island (32 pt notch): Now Playing's artwork frame sits 6 pt from the top, the bottom, the outer edge and the notch.
@@ -152,6 +152,7 @@ Measured on rendered islands (32 pt notch, with a 12 pt margin; the layout scale
 | `playerControl` | 40 | The player's row: favorite and output (filled circles), previous, play/pause, next |
 | `labelLine` | 16 | One line of `islandLabel`/`islandNumeric` text |
 | `compactContent` | 20 | Height of wing content (and width of square content like artwork); sets the compact padding |
+| `compactElapsedShort` / `Medium` / `Long` | 30 / 38 / 51 | Wing content width for a run time "m:ss" / "mm:ss" / "h:mm:ss" (measured, rounded up) |
 | `artwork` | 64 | Player artwork; also the leading column width (battery glyph) |
 | `hudLevel` | 64 | The volume and brightness level bar in the trailing wing (the leading wing shows the symbol, against the notch) |
 | `thumbnail` | 44 | Shelf file preview |
@@ -189,8 +190,10 @@ The shelf opens as a small square, like Dropover's shelf: the three newest files
 | `closeAnimation` | spring 0.45 s, damping 1 (no bounce) | `fade` |
 | `fade` | ease-out 0.15 s | — |
 | `levelMeterTick` | 0.3 s, only while playing | Still bars |
+| `hoverAnimation` | spring 0.3 s, damping 0.8 | `fade` |
+| `hoverScale` | 1.05, island grows from the top | `Size.hoverBorder` (3 pt) outline instead |
 
-The content transition is opacity plus a 0.9 scale from the top. Under Reduce Motion it is opacity only, following "Replacing transitions in x-, y-, and z-axes with fades" (HIG Accessibility › Cognitive). Frequent interactions such as hover and selection don't animate (HIG Motion › Providing feedback).
+The content transition is opacity plus a 0.9 scale from the top. Under Reduce Motion it is opacity only, following "Replacing transitions in x-, y-, and z-axes with fades" (HIG Accessibility › Cognitive). Frequent interactions such as selection don't animate (HIG Motion › Providing feedback). The one hover cue is the compact island growing by `hoverScale` to show that a click opens it; under Reduce Motion it doesn't scale and draws an outline instead.
 
 ## Components — `Core/UI/Components/`
 

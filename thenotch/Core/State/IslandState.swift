@@ -26,6 +26,11 @@ final class IslandState {
 
     var isExpanded: Bool { mode == .expanded }
 
+    /// The pointer is over the compact island, which grows to show a click
+    /// opens it. Only while compact and some module has content; the
+    /// controller resets it on open and close.
+    var isHovering = false
+
     /// Files are being dragged and the island is open as a drop target.
     var isDraggingFiles = false
     /// Something is being dragged out of the island; it stays open until
@@ -48,7 +53,7 @@ final class IslandState {
 
     /// Module shown when the island is expanded: the pinned one, else the
     /// current activity's, else the first with something to show. `nil`
-    /// when nothing has content: the island then doesn't open on hover.
+    /// when nothing has content: the island then doesn't grow on hover or open.
     var expandedModule: (any IslandModule)? {
         if let pinnedModuleID, let pinned = modules.first(where: { $0.id == pinnedModuleID }) {
             return pinned

@@ -5,7 +5,7 @@
 
 import Foundation
 
-/// A Claude Code session on this Mac, as its hooks report it.
+/// A Claude Code or Codex session on this Mac, as its hooks report it.
 struct ClaudeSession: Equatable, Identifiable {
     enum State: Equatable {
         /// Between a prompt and Claude's reply.
@@ -13,7 +13,7 @@ struct ClaudeSession: Equatable, Identifiable {
         /// A tool is waiting for permission.
         case needsPermission
         /// Claude asked a question (its `AskUserQuestion` tool) and waits
-        /// for the answer.
+        /// for the answer. The question itself is never kept.
         case asking
         /// Claude asked for input, or has waited for a reply for a while.
         case waitingForInput
@@ -22,22 +22,27 @@ struct ClaudeSession: Equatable, Identifiable {
     }
 
     let id: String
+    var source: AgentSource = .claude
     var cwd: String?
     var state: State
     /// While working: the tool running now.
     var tool: String?
     /// With `needsPermission`: what it's for.
     var message: String?
-    /// With `asking`: the questions.
-    var questions: [ClaudeQuestion] = []
+    /// When the current turn began (the prompt, or the first sign of work);
+    /// `nil` unless working or waiting inside a turn.
+    var turnStartedAt: Date?
     /// When `state` last changed.
     var since: Date
     /// When the last event came.
     var updatedAt: Date
 
+    /// Session IDs of different sources can't collide.
+    var key: String { "\(source.rawValue):\(id)" }
+
     /// The project folder's name.
     var projectName: String {
-        guard let cwd, !cwd.isEmpty else { return "Claude Code" }
+        guard let cwd, !cwd.isEmpty else { return source.displayName }
         return (cwd as NSString).lastPathComponent
     }
 }
@@ -54,14 +59,15 @@ enum ClaudeSessionChange: Equatable {
 /// Claude Code sessions, updated from hook events. Pure, so it can be
 /// unit tested: the module owns one and applies events to it.
 struct ClaudeSessions: Equatable {
-    /// By session ID.
+    /// By `ClaudeSession.key` (source and session ID).
     private(set) var byID: [String: ClaudeSession] = [:]
 
     /// Sessions without an event for this long are dropped: a terminal
     /// closed without `SessionEnd` (killed, crashed) leaves one behind.
     static let staleAfter: TimeInterval = 12 * 60 * 60
-    /// A session "working" without an event for this long (no reply, no
-    /// tool) most likely stopped without `Stop`; it shows as idle.
+    /// A session "working" (or waiting for permission, which a denial
+    /// doesn't report) without an event for this long most likely stopped
+    /// without `Stop`; it shows as idle.
     static let workingTimeout: TimeInterval = 30 * 60
 
     /// Most urgent first, then the most recently changed.
@@ -84,14 +90,15 @@ struct ClaudeSessions: Equatable {
 
     @discardableResult
     mutating func apply(_ event: ClaudeHookEvent, at date: Date) -> ClaudeSessionChange {
+        let key = "\(event.source.rawValue):\(event.sessionID)"
         if event.kind == .sessionEnd {
-            byID[event.sessionID] = nil
+            byID[key] = nil
             return .none
         }
         // A session already running when the app started appears with its
         // first event.
-        var session = byID[event.sessionID] ?? ClaudeSession(
-            id: event.sessionID, cwd: event.cwd, state: .idle, since: date, updatedAt: date
+        var session = byID[key] ?? ClaudeSession(
+            id: event.sessionID, source: event.source, cwd: event.cwd, state: .idle, since: date, updatedAt: date
         )
         if let cwd = event.cwd, session.cwd == nil {
             session.cwd = cwd
@@ -104,11 +111,11 @@ struct ClaudeSessions: Equatable {
             break
         case .userPromptSubmit:
             session.set(.working, at: date)
+            session.turnStartedAt = date
             session.tool = nil
         case .preToolUse where event.toolName == ClaudeHookEvent.askTool:
             session.set(.asking, at: date)
             session.tool = nil
-            session.questions = event.questions
             change = .needsAttention(session)
         case .preToolUse:
             session.set(.working, at: date)
@@ -117,6 +124,10 @@ struct ClaudeSessions: Equatable {
             // Permission given (or the tool ran): back to work.
             session.set(.working, at: date)
             session.tool = nil
+        case .permissionRequest:
+            session.set(.needsPermission, at: date)
+            session.tool = nil
+            change = .needsAttention(session)
         case .notification:
             switch event.notificationType {
             case .permissionPrompt where session.state == .asking:
@@ -144,13 +155,14 @@ struct ClaudeSessions: Equatable {
             let wasBusy = session.state != .idle && session.state != .waitingForInput
             session.set(.idle, at: date)
             session.tool = nil
+            session.turnStartedAt = nil
             if wasBusy {
                 change = .finished(session)
             }
         case .sessionEnd:
             break
         }
-        byID[event.sessionID] = session
+        byID[key] = session
         return change
     }
 
@@ -160,9 +172,10 @@ struct ClaudeSessions: Equatable {
     mutating func prune(at date: Date) -> Bool {
         let before = byID
         byID = byID.filter { date.timeIntervalSince($0.value.updatedAt) < Self.staleAfter }
-        for (id, session) in byID where session.state == .working
+        for (id, session) in byID where (session.state == .working || session.state == .needsPermission)
             && date.timeIntervalSince(session.updatedAt) >= Self.workingTimeout {
             byID[id]?.set(.idle, at: date)
+            byID[id]?.turnStartedAt = nil
         }
         return byID != before
     }
@@ -182,8 +195,8 @@ private extension ClaudeSession {
         if newState != .needsPermission {
             message = nil
         }
-        if newState != .asking {
-            questions = []
+        if newState == .working, turnStartedAt == nil {
+            turnStartedAt = date
         }
         guard newState != state else { return }
         state = newState

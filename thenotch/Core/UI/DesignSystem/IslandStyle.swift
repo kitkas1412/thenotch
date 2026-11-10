@@ -73,6 +73,12 @@ enum IslandStyle {
         /// such as artwork. The notch's remaining height sets the compact
         /// padding (`IslandState.compactPadding`).
         static let compactContent: CGFloat = 20
+        /// Compact wing widths for a run time in `.islandCompact` (13 pt
+        /// semibold, tabular), measured and rounded up: "0:00" 29.6,
+        /// "00:00" 38.0, "0:00:00" 50.7.
+        static let compactElapsedShort: CGFloat = 30
+        static let compactElapsedMedium: CGFloat = 38
+        static let compactElapsedLong: CGFloat = 51
         /// The level bar in the volume and brightness wing.
         static let hudLevel: CGFloat = 64
         /// Large artwork in the open player.
@@ -88,6 +94,8 @@ enum IslandStyle {
         /// are over it.
         static let dropBorder: CGFloat = 1.5
         static let dropBorderActive: CGFloat = 3
+        /// Border drawn on the hovered compact island under Reduce Motion.
+        static let hoverBorder: CGFloat = 3
         /// Height of the progress bar.
         static let progressBar: CGFloat = 6
         /// Height of the level meter.
@@ -128,6 +136,16 @@ enum IslandStyle {
     /// Closing the island: critically damped, no bounce.
     static var closeAnimation: Animation {
         reduceMotion ? fade : .spring(response: 0.45, dampingFraction: 1.0)
+    }
+
+    /// The compact island grows by this factor (anchored at the top) under
+    /// the pointer, to show it can be clicked. Reduce Motion draws a border
+    /// instead.
+    static let hoverScale: CGFloat = 1.05
+
+    /// Growing and shrinking under the pointer: quicker than opening.
+    static var hoverAnimation: Animation {
+        reduceMotion ? fade : .spring(response: 0.3, dampingFraction: 0.8)
     }
 
     static let fade = Animation.easeOut(duration: 0.15)
