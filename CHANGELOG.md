@@ -6,6 +6,21 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-10
+
+### Added
+
+- AI Agents: the Claude Code module is now called AI Agents and also follows Codex. It shows Claude Code (the CLI and the Code tab of the Claude app) and Codex (the CLI and Codex in the ChatGPT app) sessions, each labelled by name, with the elapsed time of the current turn in the wing and in the list.
+- Codex: turning the module on adds hooks to `~/.codex/hooks.json`. Codex asks you to trust them once (`/hooks`, or Settings › Hooks in the ChatGPT app). If you install Codex later, turn the module off and on again.
+
+### Changed
+
+- The island now grows slightly when you hover it and opens on click. It closes on a click outside, a click on the notch, or Esc (Esc needs Accessibility access). File drags, notifications and calls still open it by themselves.
+
+### Security
+
+- Privacy: the questions Claude asks with AskUserQuestion are no longer read. The island only shows that a session has a question; answer it in Claude Code.
+
 ## [0.8.0] - 2026-10-04
 
 ### Added
@@ -129,7 +144,8 @@ First public release (MVP).
 - Not notarized (no paid Apple Developer ID yet): macOS asks you to allow the app once, and may ask for Automation permission again after an update.
 - Now Playing supports only Spotify and Apple Music (not browsers or other players).
 
-[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/kitkas1412/thenotch/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/kitkas1412/thenotch/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/kitkas1412/thenotch/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/kitkas1412/thenotch/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/kitkas1412/thenotch/compare/v0.5.1...v0.6.0
