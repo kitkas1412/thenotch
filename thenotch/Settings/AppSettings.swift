@@ -27,7 +27,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .hud: "Volume & Brightness"
         case .bluetooth: "Bluetooth"
         case .notifications: "Notifications"
-        case .claudeCode: "Claude Code"
+        case .claudeCode: "AI Agents"
         }
     }
 
@@ -52,7 +52,7 @@ enum ModuleKind: String, CaseIterable, Identifiable {
         case .hud: "Shows volume and brightness at the notch instead of the macOS overlay."
         case .bluetooth: "Shows AirPods and other Bluetooth devices, with their battery, when they connect."
         case .notifications: "Shows notifications at the notch instead of the macOS banners."
-        case .claudeCode: "Shows when Claude Code is working, done, or waiting for your permission."
+        case .claudeCode: "Shows when Claude Code or Codex is working, done, or waiting for you."
         }
     }
 

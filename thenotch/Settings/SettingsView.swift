@@ -187,13 +187,17 @@ private struct ModulesSettingsPane: View {
                 SettingsNotice(problem, kind: .problem)
             } else {
                 SettingsNotice(
-                    "Hooks added to ~/.claude/settings.json; they're removed when you turn this off. Prompts and replies aren't read.",
+                    "Hooks added to ~/.claude/settings.json and, if Codex is installed, ~/.codex/hooks.json; they're removed when you turn this off. Prompts and replies aren't read.",
                     kind: .ok,
                     action: ("Show in Finder", {
                         NSWorkspace.shared.activateFileViewerSelecting([ClaudeHooksConfig.settingsURL])
                     })
                 )
             }
+            if let problem = ClaudeCodeStatus.shared.codexProblem {
+                SettingsNotice(problem, kind: .problem)
+            }
+            SettingsNote("Codex asks you to trust new hooks once: /hooks in the Codex CLI, or Settings › Hooks in the ChatGPT app. If you install Codex later, turn this off and on again.")
         case .nowPlaying, .battery:
             EmptyView()
         }
