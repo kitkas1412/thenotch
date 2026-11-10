@@ -127,6 +127,17 @@ struct AgentElapsedTests {
     @Test func negativeIsZero() {
         #expect(AgentElapsed.format(-5) == "0:00")
     }
+
+    @Test func widthClassFollowsDigits() {
+        #expect(AgentElapsed.WidthClass(seconds: -1) == .short)
+        #expect(AgentElapsed.WidthClass(seconds: 599) == .short)
+        #expect(AgentElapsed.WidthClass(seconds: 600) == .medium)
+        #expect(AgentElapsed.WidthClass(seconds: 3599) == .medium)
+        #expect(AgentElapsed.WidthClass(seconds: 3600) == .long)
+        #expect(AgentElapsed.WidthClass.short.nextThreshold == 600)
+        #expect(AgentElapsed.WidthClass.medium.nextThreshold == 3600)
+        #expect(AgentElapsed.WidthClass.long.nextThreshold == nil)
+    }
 }
 
 struct ClaudeSessionsTests {

@@ -73,8 +73,12 @@ enum IslandStyle {
         /// such as artwork. The notch's remaining height sets the compact
         /// padding (`IslandState.compactPadding`).
         static let compactContent: CGFloat = 20
-        /// Compact wing width for a run time ("00:00") beside the notch.
-        static let compactElapsed: CGFloat = 52
+        /// Compact wing widths for a run time in `.islandCompact` (13 pt
+        /// semibold, tabular), measured and rounded up: "0:00" 29.6,
+        /// "00:00" 38.0, "0:00:00" 50.7.
+        static let compactElapsedShort: CGFloat = 30
+        static let compactElapsedMedium: CGFloat = 38
+        static let compactElapsedLong: CGFloat = 51
         /// The level bar in the volume and brightness wing.
         static let hudLevel: CGFloat = 64
         /// Large artwork in the open player.

@@ -28,6 +28,8 @@ final class ClaudeCodeModule: IslandModule {
     private var server: ClaudeHookServer?
     private var pruneTask: Task<Void, Never>?
     private var peekTask: Task<Void, Never>?
+    /// Sleeps until the run time gains a digit (10 min, 1 h).
+    private var widthTask: Task<Void, Never>?
 
     private var peekID: String { "\(id).peek" }
 
@@ -65,6 +67,8 @@ final class ClaudeCodeModule: IslandModule {
     func stop() {
         pruneTask?.cancel()
         peekTask?.cancel()
+        widthTask?.cancel()
+        widthTask = nil
         if let server {
             let socketPath = server.path
             server.stop()
@@ -76,6 +80,7 @@ final class ClaudeCodeModule: IslandModule {
         server = nil
         model.sessions = ClaudeSessions()
         model.peek = nil
+        model.elapsedWidth = .short
         activities.remove(id: id)
         activities.remove(id: peekID)
     }
@@ -98,8 +103,9 @@ final class ClaudeCodeModule: IslandModule {
 
     /// Wide enough for the elapsed time while any session works, even when
     /// a peek or permission request briefly replaces it (no width jumps).
+    /// The width grows as the time gains digits (`model.elapsedWidth`).
     var compactContentWidth: CGFloat {
-        model.sessions.working.isEmpty ? IslandStyle.Size.compactContent : IslandStyle.Size.compactElapsed
+        model.sessions.working.isEmpty ? IslandStyle.Size.compactContent : model.elapsedWidth.width
     }
 
     var expandedContentHeight: CGFloat {
@@ -141,6 +147,7 @@ final class ClaudeCodeModule: IslandModule {
     /// The lasting activity: a session waiting for permission or an
     /// answer, else one working, else none.
     private func refreshActivity() {
+        refreshElapsedWidth()
         let sessions = model.sessions
         if model.waitingState != nil {
             activities.publish(LiveActivity(id: id, moduleID: id, priority: Self.permissionPriority, expiresAt: nil))
@@ -148,6 +155,28 @@ final class ClaudeCodeModule: IslandModule {
             activities.publish(LiveActivity(id: id, moduleID: id, priority: Self.workingPriority, expiresAt: nil))
         } else {
             activities.remove(id: id)
+        }
+    }
+
+    /// Sets the width class for the longest turn's run time and sleeps
+    /// until it changes (one task, no polling).
+    private func refreshElapsedWidth() {
+        widthTask?.cancel()
+        widthTask = nil
+        guard let start = model.longestTurnStart else {
+            model.elapsedWidth = .short
+            return
+        }
+        let elapsed = Date.now.timeIntervalSince(start)
+        let current = AgentElapsed.WidthClass(seconds: elapsed)
+        model.elapsedWidth = current
+        guard let threshold = current.nextThreshold else { return }
+        // A hair late, so the time has the extra digit when the width grows.
+        let delay = max(0, threshold - elapsed) + 0.05
+        widthTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard let self, !Task.isCancelled else { return }
+            self.refreshElapsedWidth()
         }
     }
 }
@@ -163,6 +192,8 @@ final class ClaudeCodeModel {
     var sessions = ClaudeSessions()
     /// The peek showing, if any; it outranks the lasting state.
     var peek: Peek?
+    /// How wide the longest run time is; kept current by the module.
+    var elapsedWidth: AgentElapsed.WidthClass = .short
 
     /// Whether the right wing shows a run time: sessions work and nothing
     /// outranks it.
@@ -260,6 +291,8 @@ private struct ClaudeCompactSymbol: View {
             .foregroundStyle(model.waitingState != nil ? AnyShapeStyle(IslandSignal.attention) : AnyShapeStyle(.primary))
             .symbolEffect(.pulse, isActive: isWorking && !reduceMotion && allowsAmbientAnimation)
             .accessibilityHidden(true)
+            // Fill the wing and sit at its outer edge (padding = compactPadding).
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -286,7 +319,6 @@ private struct ClaudeElapsedText: View {
             .font(font)
             .foregroundStyle(.primary)
             .lineLimit(1)
-            .minimumScaleFactor(0.7)
     }
 }
 
@@ -459,6 +491,38 @@ private struct ClaudeSessionRow: View {
 
 /// Run times: "m:ss" under an hour, "h:mm:ss" from then on.
 enum AgentElapsed {
+    /// How many digits the run time has, which sets the wing's width:
+    /// "m:ss", "mm:ss" or "h:mm:ss".
+    enum WidthClass: Equatable {
+        case short, medium, long
+
+        init(seconds: TimeInterval) {
+            switch max(0, seconds) {
+            case ..<600: self = .short
+            case ..<3600: self = .medium
+            default: self = .long
+            }
+        }
+
+        /// Compact content width that fits the widest time of this class.
+        var width: CGFloat {
+            switch self {
+            case .short: IslandStyle.Size.compactElapsedShort
+            case .medium: IslandStyle.Size.compactElapsedMedium
+            case .long: IslandStyle.Size.compactElapsedLong
+            }
+        }
+
+        /// Run time (seconds) at which the next class starts.
+        var nextThreshold: TimeInterval? {
+            switch self {
+            case .short: 600
+            case .medium: 3600
+            case .long: nil
+            }
+        }
+    }
+
     static func format(_ seconds: TimeInterval) -> String {
         let total = Int(max(0, seconds))
         let (hours, minutes, secs) = (total / 3600, total % 3600 / 60, total % 60)
