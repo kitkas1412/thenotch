@@ -189,8 +189,10 @@ The shelf opens as a small square, like Dropover's shelf: the three newest files
 | `closeAnimation` | spring 0.45 s, damping 1 (no bounce) | `fade` |
 | `fade` | ease-out 0.15 s | — |
 | `levelMeterTick` | 0.3 s, only while playing | Still bars |
+| `hoverAnimation` | spring 0.3 s, damping 0.8 | `fade` |
+| `hoverScale` | 1.05, island grows from the top | `Size.hoverBorder` (3 pt) outline instead |
 
-The content transition is opacity plus a 0.9 scale from the top. Under Reduce Motion it is opacity only, following "Replacing transitions in x-, y-, and z-axes with fades" (HIG Accessibility › Cognitive). Frequent interactions such as hover and selection don't animate (HIG Motion › Providing feedback).
+The content transition is opacity plus a 0.9 scale from the top. Under Reduce Motion it is opacity only, following "Replacing transitions in x-, y-, and z-axes with fades" (HIG Accessibility › Cognitive). Frequent interactions such as selection don't animate (HIG Motion › Providing feedback). The one hover cue is the compact island growing by `hoverScale` to show that a click opens it; under Reduce Motion it doesn't scale and draws an outline instead.
 
 ## Components — `Core/UI/Components/`
 

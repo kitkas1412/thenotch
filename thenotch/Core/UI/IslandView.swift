@@ -25,6 +25,7 @@ struct IslandView: View {
 
     var body: some View {
         let expanded = state.isExpanded
+        let hovered = state.isHovering && !expanded
         let size = expanded ? state.expandedSize : state.compactSize
         let radii = expanded ? Self.expandedRadii : (top: CGFloat(0), bottom: state.compactCornerRadius)
 
@@ -83,6 +84,20 @@ struct IslandView: View {
         // shape masks it, so it is revealed as the island opens and
         // covered as it closes, never left fading outside it.
         .clipShape(NotchShape(topRadius: radii.top, bottomRadius: radii.bottom))
+        // Hovering the compact island: it grows from its top edge (kept
+        // flush with the screen top) to show a click opens it; Reduce
+        // Motion draws a border instead. `HoverPolicy.hoverExitRect`
+        // accounts for the growth.
+        .overlay {
+            if hovered && reduceMotion {
+                NotchShape(topRadius: radii.top, bottomRadius: radii.bottom, isOpenAtTop: true)
+                    .stroke(.island(.outline), lineWidth: IslandStyle.Size.hoverBorder)
+                    .clipShape(NotchShape(topRadius: radii.top, bottomRadius: radii.bottom))
+                    .allowsHitTesting(false)
+            }
+        }
+        .scaleEffect(hovered && !reduceMotion ? IslandStyle.hoverScale : 1, anchor: .top)
+        .animation(IslandStyle.hoverAnimation, value: hovered)
         // The island is black in every appearance, like the Dynamic Island;
         // semantic styles then resolve to light-on-dark (and follow
         // Increase Contrast).
