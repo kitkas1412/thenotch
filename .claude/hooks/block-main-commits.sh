@@ -2,7 +2,8 @@
 # PreToolUse hook: block `git commit` / `git push` while on main, and pushes targeting main.
 # Exit code 2 blocks the tool call and shows stderr to Claude.
 
-command=$(jq -r '.tool_input.command // empty')
+input=$(cat)
+command=$(jq -r '.tool_input.command // empty' <<<"$input")
 [ -z "$command" ] && exit 0
 
 # Only care about git commit / git push invocations.
@@ -10,7 +11,20 @@ if ! grep -Eq '(^|[;&|[:space:]])git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[
   exit 0
 fi
 
-cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null
+# Check the branch where the command runs (worktree-aware), not the project root.
+dir=$(jq -r '.cwd // empty' <<<"$input")
+[ -n "$dir" ] || dir="${CLAUDE_PROJECT_DIR:-.}"
+
+# Honor `git -C <dir>` when present.
+c_dir=$(grep -oE 'git[[:space:]]+-C[[:space:]]+[^[:space:]]+' <<<"$command" | head -n 1 | awk '{print $3}' | tr -d "\"'")
+if [ -n "$c_dir" ]; then
+  case "$c_dir" in
+    /*) dir="$c_dir" ;;
+    *)  dir="$dir/$c_dir" ;;
+  esac
+fi
+
+cd "$dir" 2>/dev/null || cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null
 branch=$(git branch --show-current 2>/dev/null)
 
 if [ "$branch" = "main" ]; then
