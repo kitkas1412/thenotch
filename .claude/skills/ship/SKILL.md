@@ -24,10 +24,10 @@ git status --short
 
 ## 2. Test
 
-Run the same command CI uses and stop if it fails (report the failing tests; do not commit):
+Run the same command CI uses and stop if it fails (report the failing tests; do not commit). The step fails if xcodebuild exits non-zero (`pipefail` keeps `tail` from masking it):
 
 ```bash
-xcodebuild test -project thenotch.xcodeproj -scheme thenotch -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO 2>&1 | grep -v 'linkd.autoShortcut' | tail -30
+set -o pipefail; xcodebuild test -project thenotch.xcodeproj -scheme thenotch -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO 2>&1 | grep -v 'linkd.autoShortcut' | tail -30
 ```
 
 ## 3. Stage
