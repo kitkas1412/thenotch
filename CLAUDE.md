@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Shared scheme `thenotch` builds the app and runs the `thenotchTests` target (Swift Testing, hosted in the app). No linter is configured.
+Shared scheme `thenotch` builds the app and runs the `thenotchTests` target (Swift Testing, hosted in the app). No linter or formatter is configured (swift-format may be installed locally, but the repo has no config — don't run it on the codebase). Baseline on `main` at 012d3d2: the Debug build takes ~8 s with no warnings; the tests (222 Swift Testing tests in 36 suites) pass in ~10 s, and XCTest's "Executed 0 tests" line is expected. When piping `xcodebuild` output through `grep`/`tail`, use `set -o pipefail` so a failing run isn't masked.
 
 ```bash
 # Build (Debug)
@@ -62,4 +62,6 @@ Run the app from Xcode (⌘R). Because of `LSUIElement`, it has no Dock icon or 
 
 `main` is protected: never commit or push to it directly. Work on a new branch (`<type>/<topic>`, e.g. `feat/island-panel`), push it, and open a PR. A PR may only be merged once every CI check (`build-and-test`) passes. Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`, `ci:`, `chore:` …).
 
-The `/ship` skill (`.claude/skills/ship/`) automates branch → test → commit → push; it does not open the PR — the maintainer does that on GitHub. A `PreToolUse` hook (`.claude/hooks/block-main-commits.sh`) blocks `git commit`/`git push` on `main`; `gh pr create` and `gh pr merge` are denied in `.claude/settings.json` — merging is the maintainer's call.
+The `/ship` skill (`.claude/skills/ship/`) automates branch → test → commit → push and stops there. A `PreToolUse` hook (`.claude/hooks/block-main-commits.sh`, needs `jq`) blocks `git commit`/`git push` on `main`; direct `gh pr create` and `gh pr merge` are denied in `.claude/settings.json`. The repo is registered with `~/.claude/hooks/git-publish.sh` at level `merge` (Conventional Commits; CI-file changes refused): the orchestrator's `release-manager` may open a draft PR and squash merge only through that script, only when the approved plan includes it, only after every CI check (`build-and-test`) passes, and only after the maintainer confirms the merge. PR bodies follow `.github/pull_request_template.md` (Summary, Test plan, Notes).
+
+`.agents/skills/ship/` is the Codex copy of `.claude/skills/ship/`; keep both in sync. `.codex/hooks.json` uses an absolute path (`/Users/neco/Developer/thenotch/.codex/hooks/...`), so it is not portable.

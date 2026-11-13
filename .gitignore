@@ -13,3 +13,9 @@ build/
 .build/
 *.xcresult
 dist/
+
+# Local agent/orchestration files and drafts
+.agents/
+.codex/
+docs/
+.claude-draft/
