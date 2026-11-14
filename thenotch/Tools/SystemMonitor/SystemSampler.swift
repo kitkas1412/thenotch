@@ -6,45 +6,67 @@
 import AppKit
 import Observation
 
-/// Publishes `snapshot`, read off the main thread every `interval` (1 s
-/// while the popover is open). Nothing runs while nobody can see the menu
-/// bar: display asleep, screen locked or another user's session in front.
+/// Whether the sampler should be reading: the tool is on, the menu panel is
+/// open and somebody can see the screen.
+enum SystemSampling {
+    static func shouldSample(isEnabled: Bool, isPanelVisible: Bool, ambientVisible: Bool) -> Bool {
+        isEnabled && isPanelVisible && ambientVisible
+    }
+}
+
+/// Publishes `snapshot`, read off the main thread every second, only while
+/// the System Monitor tool is on and the menu panel is open (and the display
+/// is awake, the screen unlocked and the session active). Otherwise nothing
+/// runs and no observer is registered beyond the tool's own lifetime.
 @MainActor
 @Observable
 final class SystemSampler {
     private(set) var snapshot = SystemSnapshot()
 
-    /// Seconds between readings while the popover is closed.
-    var interval: TimeInterval = SystemMonitorInterval.two.seconds {
-        didSet { if interval != oldValue { restart() } }
+    /// Set by `SystemMonitorTool`: the tool is on.
+    var isEnabled = false {
+        didSet {
+            guard isEnabled != oldValue else { return }
+            if isEnabled {
+                ambient = Self.currentConditions()
+                observeConditions()
+            } else {
+                removeObservers()
+            }
+            restart()
+        }
     }
 
-    /// The popover is open: read every second.
-    var isPopoverOpen = false {
-        didSet { if isPopoverOpen != oldValue { restart(readNow: isPopoverOpen) } }
+    /// Set by `PanelWindowTracker` in `App/MenuPanel.swift`.
+    var isPanelVisible = false {
+        didSet { if isPanelVisible != oldValue { restart() } }
     }
+
+    static let interval: TimeInterval = 1
 
     @ObservationIgnored private let reader = SystemReader()
     @ObservationIgnored private var task: Task<Void, Never>?
-    @ObservationIgnored private var isStarted = false
-    @ObservationIgnored private var isPrimed = false
     @ObservationIgnored private var ambient = AmbientConditions()
     @ObservationIgnored private var observers: [(NotificationCenter, NSObjectProtocol)] = []
 
-    func start() {
-        guard !isStarted else { return }
-        isStarted = true
-        observeConditions()
-        restart()
+    /// The conditions right now, so enabling while the screen is locked or
+    /// asleep doesn't count as visible until the next notification. The lock
+    /// state comes from the session dictionary (undocumented key, but stable
+    /// for years); absent keys read as visible.
+    private static func currentConditions() -> AmbientConditions {
+        var conditions = AmbientConditions()
+        conditions.isDisplayAsleep = CGDisplayIsAsleep(CGMainDisplayID()) != 0
+        if let session = CGSessionCopyCurrentDictionary() as? [String: Any] {
+            conditions.isScreenLocked = session["CGSSessionScreenIsLocked"] as? Bool ?? false
+            conditions.isSessionInactive = !(session["kCGSSessionOnConsoleKey"] as? Bool ?? true)
+        }
+        return conditions
     }
 
-    func stop() {
-        guard isStarted else { return }
-        isStarted = false
+    private func removeObservers() {
         for (center, token) in observers { center.removeObserver(token) }
         observers = []
         ambient = AmbientConditions()
-        cancel()
     }
 
     private func cancel() {
@@ -52,47 +74,36 @@ final class SystemSampler {
         task = nil
     }
 
-    /// (Re)starts the loop, or leaves it stopped while paused.
-    private func restart(readNow: Bool = false) {
+    /// (Re)starts the loop, or leaves it stopped while it shouldn't sample.
+    private func restart() {
         cancel()
-        guard isStarted else { return }
-        guard ambient.isVisible else {
-            isPrimed = false
+        guard SystemSampling.shouldSample(
+            isEnabled: isEnabled, isPanelVisible: isPanelVisible, ambientVisible: ambient.isVisible
+        ) else {
+            // Back to the "no reading yet" placeholder, so the next open
+            // never shows values from an earlier one.
+            publish(SystemSnapshot())
             return
         }
         task = Task { [weak self] in
-            await self?.run(readNow: readNow)
+            await self?.run()
         }
     }
 
-    private func run(readNow: Bool) async {
-        var delay = currentDelay
-        if isPrimed && readNow {
-            // The popover just opened: show fresh values at once.
-            let next = await reader.read()
-            guard !Task.isCancelled else { return }
-            publish(next)
-        }
-        if !isPrimed {
-            await reader.reset()
-            let first = await reader.read()
-            guard !Task.isCancelled else { return }
-            publish(first)
-            isPrimed = true
-            delay = 0.5
-        }
+    private func run() async {
+        // Prime: the first reading has no CPU/network delta, so it isn't
+        // published; the panel keeps its placeholder until the second one.
+        await reader.reset()
+        _ = await reader.read()
+        var delay = 0.5
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled else { return }
             let next = await reader.read()
             guard !Task.isCancelled else { return }
             publish(next)
-            delay = currentDelay
+            delay = Self.interval
         }
-    }
-
-    private var currentDelay: TimeInterval {
-        isPopoverOpen ? 1 : interval
     }
 
     private func publish(_ new: SystemSnapshot) {

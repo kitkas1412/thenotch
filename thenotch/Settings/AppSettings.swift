@@ -132,18 +132,6 @@ final class AppSettings {
         didSet { defaults.set(shelfLifetime.rawValue, forKey: Self.shelfLifetimeKey) }
     }
 
-    /// Metrics shown in the System Monitor's menu bar item.
-    var systemMonitorMetrics: Set<SystemMetric> {
-        didSet {
-            defaults.set(SystemMetric.allCases.filter(systemMonitorMetrics.contains).map(\.rawValue),
-                         forKey: Self.systemMonitorMetricsKey)
-        }
-    }
-
-    var systemMonitorInterval: SystemMonitorInterval {
-        didSet { defaults.set(systemMonitorInterval.rawValue, forKey: Self.systemMonitorIntervalKey) }
-    }
-
     private(set) var launchAtLoginStatus: SMAppService.Status = .notRegistered
     private(set) var launchAtLoginError: String?
 
@@ -163,9 +151,6 @@ final class AppSettings {
                 .map { (action.id, $0) }
         })
         shelfLifetime = defaults.string(forKey: Self.shelfLifetimeKey).flatMap(ShelfLifetime.init) ?? .day
-        systemMonitorMetrics = defaults.stringArray(forKey: Self.systemMonitorMetricsKey)
-            .map { Set($0.compactMap(SystemMetric.init(rawValue:))) } ?? [.cpu, .memory]
-        systemMonitorInterval = SystemMonitorInterval(rawValue: defaults.integer(forKey: Self.systemMonitorIntervalKey)) ?? .two
     }
 
     func isEnabled(_ kind: ModuleKind) -> Bool {
@@ -234,8 +219,6 @@ final class AppSettings {
     }
 
     private static let shelfLifetimeKey = "shelf.lifetime"
-    private static let systemMonitorMetricsKey = "systemMonitor.menuBarMetrics"
-    private static let systemMonitorIntervalKey = "systemMonitor.interval"
 
     private static func key(for kind: ModuleKind) -> String {
         "module.\(kind.rawValue).enabled"

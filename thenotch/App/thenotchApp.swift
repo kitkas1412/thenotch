@@ -12,41 +12,15 @@ struct thenotchApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        // LSUIElement apps have no Dock icon or app menu, so this menu is
+        // LSUIElement apps have no Dock icon or app menu, so this panel is
         // the only way to reach Settings and to quit.
         MenuBarExtra(AppIdentity.name, systemImage: "capsule.fill") {
-            MenuContent(updater: appDelegate.updater)
+            MenuPanel(sampler: appDelegate.systemMonitor, updater: appDelegate.updater)
         }
+        .menuBarExtraStyle(.window)
 
         Settings {
             SettingsView(settings: appDelegate.settings, updater: appDelegate.updater, hotKeys: appDelegate.hotKeys)
         }
-    }
-}
-
-private struct MenuContent: View {
-    var updater: Updater
-
-    @Environment(\.openSettings) private var openSettings
-
-    var body: some View {
-        Button("Settings…") {
-            // An agent app isn't frontmost; bring the window forward.
-            NSApp.activate()
-            openSettings()
-        }
-        .keyboardShortcut(",")
-
-        Button("Check for Updates…") {
-            updater.checkForUpdates()
-        }
-        .disabled(!updater.canCheckForUpdates)
-
-        Divider()
-
-        Button("Quit \(AppIdentity.name)") {
-            NSApp.terminate(nil)
-        }
-        .keyboardShortcut("q")
     }
 }

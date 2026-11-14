@@ -2,7 +2,7 @@
 
 The island is a small, glanceable surface that grows out of the MacBook notch. It shows one thing at a time: what's playing, the files waiting on the shelf, or the battery for a moment. Everything here serves that: black like the hardware, large and heavy type, few controls, and color only where it carries meaning.
 
-The code lives in `thenotch/Core/UI/DesignSystem/` (tokens) and `thenotch/Core/UI/Components/` (shared views). `thenotchTests/DesignSystemTests.swift` checks the rules marked ✓ below. This system is for the island only. The other tools of the suite draw menu bar items, popovers and Settings panes, and use system fonts, colors and controls there (the System Monitor's `NSStatusItem` title and `NSPopover` use none of these tokens), so they follow the system appearance instead of the forced dark island. Guidance is quoted from Apple's Human Interface Guidelines (HIG) by page › section.
+The code lives in `thenotch/Core/UI/DesignSystem/` (tokens) and `thenotch/Core/UI/Components/` (shared views). `thenotchTests/DesignSystemTests.swift` checks the rules marked ✓ below. This system is for the island only. The other tools of the suite draw the thenotch menu panel and Settings panes, and use system fonts, colors and controls there (the menu panel, System Monitor section included, uses none of these tokens), so they follow the system appearance instead of the forced dark island. Guidance is quoted from Apple's Human Interface Guidelines (HIG) by page › section.
 
 ## Principles
 
@@ -218,4 +218,4 @@ The content transition is opacity plus a 0.9 scale from the top. Under Reduce Mo
 - [ ] Moving content honors `accessibilityReduceMotion`.
 - [ ] Checked with Increase Contrast and Reduce Motion on.
 
-The Settings window (a `NavigationSplitView` with a sidebar, grouped SwiftUI `Form`s in the detail) and the System Monitor's menu bar item and popover use system components and system colors, not island tokens.
+The Settings window (a `NavigationSplitView` with a sidebar, grouped SwiftUI `Form`s in the detail) and the thenotch menu panel (`App/MenuPanel`, with the System Monitor section) use system components and system colors, not island tokens.

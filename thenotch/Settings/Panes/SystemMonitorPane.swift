@@ -5,8 +5,7 @@
 
 import SwiftUI
 
-/// The System Monitor tool: its switch, then what the menu bar shows and
-/// how often it updates, only while the tool is on.
+/// The System Monitor tool: its switch, then its notes while it is on.
 struct SystemMonitorPane: View {
     var settings: AppSettings
 
@@ -26,36 +25,13 @@ struct SystemMonitorPane: View {
                     )
                 )
                 if !isToolOn {
-                    SettingsNote("Turn System Monitor on to see CPU, memory and network in the menu bar.")
+                    SettingsNote("Turn System Monitor on to see CPU, memory, network and disk at the top of the thenotch menu.")
                 }
             }
 
             if isToolOn {
-                Section("Menu bar") {
-                    ForEach(SystemMetric.allCases) { metric in
-                        Toggle(metric.title, isOn: Binding(
-                            get: { settings.systemMonitorMetrics.contains(metric) },
-                            set: { isOn in
-                                if isOn {
-                                    settings.systemMonitorMetrics.insert(metric)
-                                } else {
-                                    settings.systemMonitorMetrics.remove(metric)
-                                }
-                            }
-                        ))
-                    }
-                    Picker("Update every", selection: Binding(
-                        get: { settings.systemMonitorInterval },
-                        set: { settings.systemMonitorInterval = $0 }
-                    )) {
-                        ForEach(SystemMonitorInterval.allCases) { interval in
-                            Text(interval.title).tag(interval)
-                        }
-                    }
-                    SettingsNote("With none selected, the menu bar shows only the icon. Click it for the details, including disk.")
-                }
-
                 Section {
+                    SettingsNote("CPU, memory, network and disk show at the top of the thenotch menu.")
                     SettingsNote("Temperatures and fan speeds aren't shown: macOS doesn't offer them without extra privileges.")
                 }
             }
