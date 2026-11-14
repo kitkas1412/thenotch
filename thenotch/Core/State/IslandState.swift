@@ -41,6 +41,9 @@ final class IslandState {
     /// Called by the views when they start dragging something out; set by
     /// the controller.
     @ObservationIgnored var onDragOutBegan: (() -> Void)?
+    /// Called synchronously when the shown module may have changed (a tab
+    /// was selected); set by the controller.
+    @ObservationIgnored var onShownModuleChange: (() -> Void)?
 
     /// Module owning the activity shown in compact mode.
     var currentModule: (any IslandModule)? {
@@ -58,7 +61,9 @@ final class IslandState {
         if let pinnedModuleID, let pinned = modules.first(where: { $0.id == pinnedModuleID }) {
             return pinned
         }
-        if let currentModule, currentModule.hasExpandedContent {
+        // A contributed module (the clipboard history) isn't opened by its
+        // own brief activity; only pinning shows it.
+        if let currentModule, currentModule.hasExpandedContent, !(currentModule is any ContributedIslandModule) {
             return currentModule
         }
         return modules.first { $0.hasExpandedContent }
@@ -84,6 +89,7 @@ final class IslandState {
         else { return }
         pinnedModuleID = moduleID
         module.islandDidExpand()
+        onShownModuleChange?()
     }
 
     /// Standard width of the open island (`IslandModule.expandedWidth`).
@@ -100,8 +106,11 @@ final class IslandState {
     var expandedSize: CGSize {
         let module = expandedModule
         let content = module?.expandedContentHeight ?? Self.defaultContentHeight
-        let width = module?.expandedWidth ?? Self.expandedWidth
-        return CGSize(width: width, height: contentTop(width: width) + content)
+        // A module may ask for up to the panel's width (600 pt) and what
+        // fits its height; the panel never grows.
+        let width = min(module?.expandedWidth ?? Self.expandedWidth, IslandController.panelSize.width)
+        let height = min(contentTop(width: width) + content, IslandController.panelSize.height)
+        return CGSize(width: width, height: height)
     }
 
     /// Where the shown module's content starts: below the notch, its

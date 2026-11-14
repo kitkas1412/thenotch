@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let updater: Updater
     let hotKeys: HotKeyCenter
     let systemMonitor: SystemSampler
+    let islandContributions: IslandContributions
     private let toolHost: ToolHost
 
     override init() {
@@ -20,7 +21,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updater = Updater()
         hotKeys = HotKeyCenter()
         systemMonitor = SystemSampler()
-        toolHost = ToolHost(context: ToolContext(settings: settings, hotKeys: hotKeys, systemMonitor: systemMonitor))
+        islandContributions = IslandContributions()
+        toolHost = ToolHost(context: ToolContext(
+            settings: settings,
+            hotKeys: hotKeys,
+            systemMonitor: systemMonitor,
+            islandContributions: islandContributions
+        ))
         super.init()
     }
 

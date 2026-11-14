@@ -136,6 +136,29 @@ final class AppSettings {
         didSet { defaults.set(shelfLifetime.rawValue, forKey: Self.shelfLifetimeKey) }
     }
 
+    /// Clipboard history size, one of `clipboardLimits`.
+    var clipboardLimit: Int {
+        didSet { defaults.set(clipboardLimit, forKey: Self.clipboardLimitKey) }
+    }
+    /// Delete the history when the app quits.
+    var clipboardClearOnQuit: Bool {
+        didSet { defaults.set(clipboardClearOnQuit, forKey: Self.clipboardClearOnQuitKey) }
+    }
+    /// Bundle IDs of apps whose copies are never recorded.
+    var clipboardIgnoredApps: [String] {
+        didSet { defaults.set(clipboardIgnoredApps, forKey: Self.clipboardIgnoredAppsKey) }
+    }
+    /// Paste with ⌘V after choosing an entry (needs Accessibility).
+    var clipboardPastesDirectly: Bool {
+        didSet { defaults.set(clipboardPastesDirectly, forKey: Self.clipboardPastesDirectlyKey) }
+    }
+    /// Record copies made on other devices (Universal Clipboard).
+    var clipboardRecordsRemote: Bool {
+        didSet { defaults.set(clipboardRecordsRemote, forKey: Self.clipboardRecordsRemoteKey) }
+    }
+
+    static let clipboardLimits = [50, 100, 200, 500]
+
     private(set) var launchAtLoginStatus: SMAppService.Status = .notRegistered
     private(set) var launchAtLoginError: String?
 
@@ -164,6 +187,12 @@ final class AppSettings {
         self.shortcuts = shortcuts
         clearedShortcuts = cleared
         shelfLifetime = defaults.string(forKey: Self.shelfLifetimeKey).flatMap(ShelfLifetime.init) ?? .day
+        let limit = defaults.integer(forKey: Self.clipboardLimitKey)
+        clipboardLimit = Self.clipboardLimits.contains(limit) ? limit : 200
+        clipboardClearOnQuit = defaults.bool(forKey: Self.clipboardClearOnQuitKey)
+        clipboardIgnoredApps = defaults.stringArray(forKey: Self.clipboardIgnoredAppsKey) ?? []
+        clipboardPastesDirectly = defaults.object(forKey: Self.clipboardPastesDirectlyKey) as? Bool ?? true
+        clipboardRecordsRemote = defaults.object(forKey: Self.clipboardRecordsRemoteKey) as? Bool ?? true
     }
 
     func isEnabled(_ kind: ModuleKind) -> Bool {
@@ -276,6 +305,11 @@ final class AppSettings {
     }
 
     private static let shelfLifetimeKey = "shelf.lifetime"
+    private static let clipboardLimitKey = "clipboard.limit"
+    private static let clipboardClearOnQuitKey = "clipboard.clearOnQuit"
+    private static let clipboardIgnoredAppsKey = "clipboard.ignoredApps"
+    private static let clipboardPastesDirectlyKey = "clipboard.pastesDirectly"
+    private static let clipboardRecordsRemoteKey = "clipboard.recordsRemote"
 
     private static func key(for kind: ModuleKind) -> String {
         "module.\(kind.rawValue).enabled"

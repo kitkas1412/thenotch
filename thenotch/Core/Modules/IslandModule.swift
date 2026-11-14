@@ -3,6 +3,7 @@
 //  thenotch
 //
 
+import AppKit
 import SwiftUI
 
 /// A feature shown in the island (Now Playing, Battery, Timer…).
@@ -59,6 +60,27 @@ protocol IslandModule: AnyObject {
     /// at most `IslandStyle.Size.compactContent` tall. Content narrower
     /// than this sits snug against the notch.
     var compactContentWidth: CGFloat { get }
+
+    /// Title of the module's tab (also its tooltip).
+    var tabTitle: String { get }
+    /// SF Symbol of the module's tab.
+    var tabSymbol: String { get }
+
+    /// The module takes typing while it is shown: the island's panel
+    /// becomes the key window (without activating the app) and offers key
+    /// presses to `handleKeyDown(_:)`. Typing leaves the island when the
+    /// module is no longer shown.
+    var takesKeyboard: Bool { get }
+
+    /// The module shows private content: while it is shown the island's
+    /// window is hidden from screenshots and screen sharing, for the rest
+    /// of that opening and a moment after it closes.
+    var excludesFromCapture: Bool { get }
+
+    /// A key press while the module is shown and `takesKeyboard`. Return
+    /// whether it was handled (it then goes no further); not offered while
+    /// an input method is composing.
+    func handleKeyDown(_ event: NSEvent) -> Bool
 }
 
 extension IslandModule {
@@ -75,6 +97,16 @@ extension IslandModule {
     var expandedWidth: CGFloat { IslandState.expandedWidth }
 
     var compactContentWidth: CGFloat { IslandStyle.Size.compactContent }
+
+    var tabTitle: String { ModuleKind(rawValue: id)?.title ?? id }
+
+    var tabSymbol: String { ModuleKind(rawValue: id)?.symbol ?? "circle" }
+
+    var takesKeyboard: Bool { false }
+
+    var excludesFromCapture: Bool { false }
+
+    func handleKeyDown(_ event: NSEvent) -> Bool { false }
 }
 
 /// A module that takes files dropped on the island (the Shelf). While files
