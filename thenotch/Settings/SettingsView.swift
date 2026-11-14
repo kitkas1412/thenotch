@@ -54,6 +54,9 @@ struct SettingsView: View {
             case .tool(.systemMonitor):
                 SystemMonitorPane(settings: settings)
                     .navigationTitle(ToolKind.systemMonitor.title)
+            case .tool(.windowManagement):
+                WindowManagementPane(settings: settings, hotKeys: hotKeys)
+                    .navigationTitle(ToolKind.windowManagement.title)
             }
         }
         .frame(width: SettingsLayout.width, height: SettingsLayout.height)

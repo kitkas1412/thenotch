@@ -8,6 +8,7 @@ import Foundation
 enum ToolKind: String, CaseIterable, Identifiable {
     case notch
     case systemMonitor
+    case windowManagement
 
     var id: String { rawValue }
 
@@ -15,6 +16,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
         switch self {
         case .notch: "Notch"
         case .systemMonitor: "System Monitor"
+        case .windowManagement: "Window Management"
         }
     }
 
@@ -23,6 +25,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
         switch self {
         case .notch: "capsule.fill"
         case .systemMonitor: "gauge.with.dots.needle.33percent"
+        case .windowManagement: "rectangle.split.2x1"
         }
     }
 
@@ -30,6 +33,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
         switch self {
         case .notch: "A Dynamic Island around the MacBook notch."
         case .systemMonitor: "CPU, memory, network and disk in the thenotch menu."
+        case .windowManagement: "Move and resize windows with keyboard shortcuts."
         }
     }
 
@@ -41,6 +45,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
         switch self {
         case .notch: NotchTool(settings: context.settings, hotKeys: context.hotKeys)
         case .systemMonitor: SystemMonitorTool(sampler: context.systemMonitor)
+        case .windowManagement: WindowManagerTool(settings: context.settings, hotKeys: context.hotKeys)
         }
     }
 }

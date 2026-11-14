@@ -157,9 +157,39 @@ struct Shortcut: Codable, Hashable, Sendable {
 struct ShortcutAction: Identifiable, Hashable, Sendable {
     let id: String
     let title: String
+    let tool: ToolKind
+    /// Used until the user records or clears the shortcut.
+    let defaultShortcut: Shortcut?
 
-    static let notchToggle = ShortcutAction(id: "notch.toggle", title: "Open or close the island")
+    init(id: String, title: String, tool: ToolKind, defaultShortcut: Shortcut? = nil) {
+        self.id = id
+        self.title = title
+        self.tool = tool
+        self.defaultShortcut = defaultShortcut
+    }
+
+    static let notchToggle = ShortcutAction(
+        id: "notch.toggle", title: "Open or close the island", tool: .notch)
+
+    /// Id of the shortcut that runs a window action.
+    static func windowActionID(_ action: WindowAction) -> String {
+        "windows.\(action.rawValue)"
+    }
+
+    /// One action per `WindowAction`, with its default shortcut.
+    static let windowActions: [ShortcutAction] = WindowAction.allCases.map { action in
+        ShortcutAction(
+            id: windowActionID(action),
+            title: action.title,
+            tool: .windowManagement,
+            defaultShortcut: action.defaultShortcut)
+    }
 
     /// Every action with a shortcut setting.
-    static let all: [ShortcutAction] = [notchToggle]
+    static let all: [ShortcutAction] = [notchToggle] + windowActions
+
+    /// The actions of one tool, in display order.
+    static func actions(for tool: ToolKind) -> [ShortcutAction] {
+        all.filter { $0.tool == tool }
+    }
 }
