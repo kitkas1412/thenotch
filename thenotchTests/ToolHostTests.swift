@@ -18,9 +18,10 @@ struct ToolHostTests {
         let ids = ToolKind.allCases.map(\.id)
         #expect(Set(ids).count == ids.count)
         for kind in ToolKind.allCases { #expect(kind.id == kind.rawValue) }
-        #expect(ToolKind.allCases == [.notch])
+        #expect(ToolKind.allCases == [.notch, .systemMonitor])
         #expect(ToolKind.notch.rawValue == "notch")
         #expect(ToolKind.notch.isOnByDefault)
+        #expect(!ToolKind.systemMonitor.isOnByDefault)
     }
 
     @Test func buildsOneToolPerKindAtInitWithoutStartingThem() {
@@ -80,10 +81,12 @@ struct ToolHostTests {
         // not possible (one per kind), so ordering is verified with a duplicate-free
         // single kind here and the reverse order is covered once more kinds exist.
         let log = FakeTool.Calls()
-        let host = ToolHost(kinds: ToolKind.allCases) { FakeTool(id: $0.id, log: log) }
+        // Without settings only the tools on by default start.
+        let kinds = ToolKind.allCases.filter(\.isOnByDefault)
+        let host = ToolHost(kinds: kinds) { FakeTool(id: $0.id, log: log) }
         host.start(); host.stop()
-        let expectedStart = ToolKind.allCases.map { "start:\($0.id)" }
-        let expectedStop = ToolKind.allCases.reversed().map { "stop:\($0.id)" }
+        let expectedStart = kinds.map { "start:\($0.id)" }
+        let expectedStop = kinds.reversed().map { "stop:\($0.id)" }
         #expect(log.calls == expectedStart + expectedStop)
     }
 
