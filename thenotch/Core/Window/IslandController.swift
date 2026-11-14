@@ -11,13 +11,18 @@ import SwiftUI
 
 /// Owns the island panel and keeps it positioned over the notch.
 @MainActor
-final class IslandController {
+final class IslandController: IslandHosting {
     /// Fixed panel size, large enough for the expanded island. Only the
     /// SwiftUI content inside resizes; animating the window frame stutters.
     static let panelSize = CGSize(width: 640, height: 320)
 
     let state = IslandState()
     private let settings: AppSettings
+    private let contributions: IslandContributions
+    /// Started built-in modules, in `ModuleKind` order; `state.modules` is
+    /// these followed by `attachedContributions`.
+    private var builtInModules: [any IslandModule] = []
+    private var attachedContributions: [any ContributedIslandModule] = []
     private var panel: IslandPanel?
     /// Between `start()` and `stop()`.
     private var isStarted = false
@@ -49,6 +54,12 @@ final class IslandController {
     private var shrinkGrace = HoverPolicy.ShrinkGrace()
     /// The island opened by itself for an activity (`LiveActivity.presents`).
     private var presentation: Presentation?
+    /// Our own `releaseKey` is resigning the panel: that isn't the user leaving.
+    private var isReleasingKey = false
+    /// The app that was frontmost when the panel took key status.
+    private var appBeforeKey: NSRunningApplication?
+    /// Puts `sharingType` back to `.readOnly` shortly after closing.
+    private var captureRestoreTask: Task<Void, Never>?
 
     private struct Presentation {
         let activityID: String
@@ -65,8 +76,12 @@ final class IslandController {
     /// itself reaches the island, and the drop needs its target views.
     static let dropGracePeriod: Duration = .milliseconds(500)
 
-    init(settings: AppSettings) {
+    /// How long the window stays hidden from capture after the island closes.
+    static let captureRestoreDelay: Duration = .milliseconds(800)
+
+    init(settings: AppSettings, contributions: IslandContributions) {
         self.settings = settings
+        self.contributions = contributions
     }
 
     func start() {
@@ -80,6 +95,12 @@ final class IslandController {
             self?.mouseMoved()
         }
         panel.contentView = hostingView
+        panel.keyHandler = { [weak self] event in
+            self?.panelKeyDown(event) ?? false
+        }
+        panel.onResignKey = { [weak self] in
+            self?.panelResignedKey()
+        }
 
         // The panel covers part of the menu bar; let clicks pass through
         // until the island opens.
@@ -104,6 +125,12 @@ final class IslandController {
         state.onDragOutBegan = { [weak self] in
             self?.dragOutBegan()
         }
+        state.onShownModuleChange = { [weak self] in
+            self?.updateShownModulePolicies()
+        }
+        contributions.host = self
+        syncContributions()
+        observeContributions()
 
         observeMenus()
         observeAmbientConditions()
@@ -133,6 +160,7 @@ final class IslandController {
         state.activities.onRemove = nil
         settings.onModulesChange = nil
         state.onDragOutBegan = nil
+        state.onShownModuleChange = nil
 
         close(animated: false)  // ends a presentation, stops the Esc monitor
         isStarted = false
@@ -159,9 +187,18 @@ final class IslandController {
         dragOutTask?.cancel()
         dragOutTask = nil
 
-        for module in state.modules.reversed() {
+        // Contributed modules belong to their tools: they only learn the
+        // island is gone.
+        contributions.host = nil
+        for module in attachedContributions.reversed() {
+            module.islandDidCollapse()
+            module.detach()
+        }
+        attachedContributions = []
+        for module in builtInModules.reversed() {
             module.suspend()
         }
+        builtInModules = []
         state.modules = []
 
         state.mode = .compact
@@ -174,7 +211,14 @@ final class IslandController {
         dragChangeCountAtMouseDown = nil
         shrinkGrace.reset()
 
+        captureRestoreTask?.cancel()
+        captureRestoreTask = nil
+        appBeforeKey = nil
         if let panel {
+            panel.keyHandler = nil
+            panel.onResignKey = nil
+            panel.acceptsKeyboard = false
+            panel.sharingType = .readOnly
             panel.orderOut(nil)
             (panel.contentView as? IslandHostingView<IslandView>)?.onMouseMoved = nil
             panel.contentView = nil
@@ -186,19 +230,61 @@ final class IslandController {
     /// `ModuleKind` order. A disabled module is never started.
     private func applyModuleSettings() {
         let enabled = settings.enabledModules
-        for module in state.modules where !enabled.contains(where: { $0.id == module.id }) {
+        for module in builtInModules where !enabled.contains(where: { $0.id == module.id }) {
+            if state.pinnedModuleID == module.id {
+                close(animated: true)
+            }
             module.stop()
         }
-        state.modules = enabled.map { kind in
-            if let running = state.modules.first(where: { $0.id == kind.id }) {
+        builtInModules = enabled.map { kind in
+            if let running = builtInModules.first(where: { $0.id == kind.id }) {
                 return running
             }
             let module = kind.makeModule(activities: state.activities, settings: settings)
             module.start()
             return module
         }
+        state.modules = builtInModules + attachedContributions
+        updateShownModulePolicies()
         // The last module with content may be gone under a hovering pointer.
         mouseMoved()
+    }
+
+    /// Attaches modules the tools added since, detaches the removed ones and
+    /// puts the contributed modules after the built-in ones.
+    private func syncContributions() {
+        let current = contributions.modules
+        for module in attachedContributions where !current.contains(where: { $0 === module }) {
+            if state.pinnedModuleID == module.id {
+                close(animated: true)
+            }
+            attachedContributions.removeAll { $0 === module }
+            state.modules = builtInModules + attachedContributions
+            module.detach()
+        }
+        for module in current where !attachedContributions.contains(where: { $0 === module }) {
+            attachedContributions.append(module)
+            // In `state.modules` first: attaching may present at once.
+            state.modules = builtInModules + attachedContributions
+            module.attach(activities: state.activities)
+        }
+        updateShownModulePolicies()
+        mouseMoved()
+    }
+
+    private func observeContributions() {
+        let generation = expandableContentGeneration
+        withObservationTracking {
+            _ = contributions.modules
+        } onChange: { [weak self] in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let self, self.expandableContentGeneration == generation else { return }
+                    self.syncContributions()
+                    self.observeContributions()
+                }
+            }
+        }
     }
 
     /// Re-evaluates hover when what the island can show changes (a module's
@@ -541,6 +627,7 @@ final class IslandController {
         } else if state.pinnedModuleID != target.id {
             state.pinnedModuleID = target.id
             target.islandDidExpand()
+            updateShownModulePolicies()
         }
     }
 
@@ -620,6 +707,40 @@ final class IslandController {
         }
     }
 
+    /// A shortcut of a contributed module's tool (`IslandHosting`).
+    func toggleContribution(id: String) -> Bool {
+        let decision = ContributionToggle.decide(
+            isStarted: isStarted,
+            hasModule: state.modules.contains { $0.id == id },
+            isExpanded: state.isExpanded,
+            shownModuleID: state.expandedModule?.id,
+            targetID: id,
+            isVisible: state.ambient.isVisible,
+            isBlocked: isInteractionBlocked
+        )
+        switch decision {
+        case .none:
+            return false
+        case .close:
+            close(animated: true)
+        case .open:
+            open(pinning: id)
+            guard state.isExpanded else { return false }
+        case .select:
+            // The user's now: a running presentation ends without closing.
+            presentation?.closeTask?.cancel()
+            presentation = nil
+            withAnimation(IslandStyle.openAnimation) {
+                state.select(id)
+            }
+        }
+        return true
+    }
+
+    func closeIsland() {
+        close(animated: true)
+    }
+
     /// Opens on `moduleID`, or on the module `IslandState.expandedModule`
     /// picks.
     private func open(pinning moduleID: String? = nil) {
@@ -637,6 +758,7 @@ final class IslandController {
         }
         state.expandedModule?.islandDidExpand()
         startEscapeMonitor()
+        updateShownModulePolicies()
     }
 
     /// Opens the island on the activity's module until it expires. Doesn't
@@ -647,10 +769,16 @@ final class IslandController {
         // A brief activity doesn't cut a lasting one short (a notification
         // arriving while a call rings).
         if let presentation, presentation.closeTask == nil, activity.expiresAt != nil { return }
-        if state.isExpanded {
-            guard presentation != nil else { return }
+        switch PresentationPolicy.decide(
+            isExpanded: state.isExpanded,
+            hasPresentation: presentation != nil,
+            shownTakesKeyboard: state.expandedModule?.takesKeyboard == true
+        ) {
+        case .ignore:
+            return
+        case .select:
             state.select(activity.moduleID)
-        } else {
+        case .open:
             open(pinning: activity.moduleID)
             guard state.isExpanded else { return }
         }
@@ -700,6 +828,7 @@ final class IslandController {
             module.islandDidCollapse()
         }
         panel?.ignoresMouseEvents = true
+        updateShownModulePolicies()
         // The pointer may rest on the notch: show the hover cue without
         // waiting for it to move.
         if !isHoverRefreshScheduled {
@@ -711,6 +840,105 @@ final class IslandController {
                 }
             }
         }
+    }
+
+    // MARK: - Keyboard and capture
+
+    /// Applies what the shown module asks for: the keyboard (`takesKeyboard`)
+    /// and exclusion from screen capture (`excludesFromCapture`). Called
+    /// synchronously whenever the island opens or closes or the shown module
+    /// changes, so neither lags behind what is on screen.
+    private func updateShownModulePolicies() {
+        guard let panel else { return }
+        let shown = state.isExpanded ? state.expandedModule : nil
+        let decision = ShownModulePolicy.decide(
+            isExpanded: state.isExpanded,
+            shownTakesKeyboard: shown?.takesKeyboard == true,
+            shownExcludesCapture: shown?.excludesFromCapture == true,
+            currentlyExcluding: panel.sharingType != .readOnly,
+            hasRestoreTask: captureRestoreTask != nil
+        )
+        switch decision.sharing {
+        case .exclude:
+            captureRestoreTask?.cancel()
+            captureRestoreTask = nil
+            if panel.sharingType != .none {
+                panel.sharingType = .none
+            }
+        case .restoreNow:
+            captureRestoreTask?.cancel()
+            captureRestoreTask = nil
+            panel.sharingType = .readOnly
+        case .scheduleRestore:
+            // Kept a moment after the island closes (the close animation).
+            captureRestoreTask = Task { [weak self] in
+                try? await Task.sleep(for: Self.captureRestoreDelay)
+                guard let self, !Task.isCancelled else { return }
+                self.captureRestoreTask = nil
+                guard !self.state.isExpanded else { return }
+                self.panel?.sharingType = .readOnly
+            }
+        case .keep:
+            break
+        }
+        switch decision.key {
+        case .take: takeKey(panel)
+        case .release: releaseKey(panel)
+        }
+    }
+
+    /// Makes the panel key without activating the app (it is non-activating),
+    /// so the frontmost app stays in front.
+    private func takeKey(_ panel: IslandPanel) {
+        if !panel.acceptsKeyboard {
+            appBeforeKey = NSWorkspace.shared.frontmostApplication
+            panel.acceptsKeyboard = true
+        }
+        if !panel.isKeyWindow {
+            panel.makeKey()
+        }
+    }
+
+    /// Gives key status back. A non-activating panel leaves the frontmost
+    /// app active, so ordering the panel out and back in hands key status to
+    /// that app's window; if that app isn't active after all, it is
+    /// re-activated.
+    private func releaseKey(_ panel: IslandPanel) {
+        guard panel.acceptsKeyboard else { return }
+        panel.acceptsKeyboard = false
+        let previous = appBeforeKey
+        appBeforeKey = nil
+        guard panel.isKeyWindow else { return }
+        isReleasingKey = true
+        panel.orderOut(nil)
+        panel.orderFrontRegardless()
+        isReleasingKey = false
+        // Only while we are still in front: never steal focus from an app
+        // the user just clicked.
+        if let previous, !previous.isTerminated, !previous.isActive,
+           NSWorkspace.shared.frontmostApplication?.processIdentifier == getpid() {
+            previous.activate()
+        }
+    }
+
+    /// A key press in the panel while it is key: the shown module may take
+    /// it; Esc it didn't take closes the island (the global Esc monitor
+    /// doesn't see keys our own windows receive).
+    private func panelKeyDown(_ event: NSEvent) -> Bool {
+        guard state.isExpanded, let module = state.expandedModule, module.takesKeyboard else { return false }
+        if module.handleKeyDown(event) { return true }
+        if event.keyCode == 53 {
+            close(animated: true)
+            return true
+        }
+        return false
+    }
+
+    /// The panel stopped being key while a keyboard module is shown (⌘Tab,
+    /// a click on another app): the island closes.
+    private func panelResignedKey() {
+        guard !isReleasingKey, state.isExpanded, state.expandedModule?.takesKeyboard == true else { return }
+        close(animated: true)
     }
 }
 

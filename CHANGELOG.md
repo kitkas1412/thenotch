@@ -6,6 +6,10 @@ All notable changes to thenotch are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Clipboard: keeps a history of what you copy, shown in the island. Open it with ⌃⌘V or from the Clipboard tab that appears when you click the notch and the history has items (it needs Notch on, and Clipboard on in Settings › Clipboard). It has a search field, one line per item, and the history is encrypted on this Mac. Copies from password managers are skipped.
+
 ## [0.9.0] - 2026-11-10
 
 ### Added

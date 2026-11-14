@@ -57,6 +57,9 @@ struct SettingsView: View {
             case .tool(.windowManagement):
                 WindowManagementPane(settings: settings, hotKeys: hotKeys)
                     .navigationTitle(ToolKind.windowManagement.title)
+            case .tool(.clipboard):
+                ClipboardPane(settings: settings, hotKeys: hotKeys)
+                    .navigationTitle(ToolKind.clipboard.title)
             }
         }
         .frame(width: SettingsLayout.width, height: SettingsLayout.height)
