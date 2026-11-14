@@ -68,6 +68,7 @@ extension ToolKind {
     var tint: Color {
         switch self {
         case .notch: .teal
+        case .systemMonitor: .green
         }
     }
 }

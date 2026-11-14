@@ -51,6 +51,9 @@ struct SettingsView: View {
             case .tool(.notch):
                 NotchPane(settings: settings, hotKeys: hotKeys)
                     .navigationTitle(ToolKind.notch.title)
+            case .tool(.systemMonitor):
+                SystemMonitorPane(settings: settings)
+                    .navigationTitle(ToolKind.systemMonitor.title)
             }
         }
         .frame(width: SettingsLayout.width, height: SettingsLayout.height)

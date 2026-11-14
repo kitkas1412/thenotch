@@ -7,12 +7,14 @@ import Foundation
 
 enum ToolKind: String, CaseIterable, Identifiable {
     case notch
+    case systemMonitor
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .notch: "Notch"
+        case .systemMonitor: "System Monitor"
         }
     }
 
@@ -20,22 +22,25 @@ enum ToolKind: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .notch: "capsule.fill"
+        case .systemMonitor: "gauge.with.dots.needle.33percent"
         }
     }
 
     var summary: String {
         switch self {
         case .notch: "A Dynamic Island around the MacBook notch."
+        case .systemMonitor: "CPU, memory, network and disk in the menu bar."
         }
     }
 
     /// Whether the tool is on until the user decides.
-    var isOnByDefault: Bool { true }
+    var isOnByDefault: Bool { self == .notch }
 
     @MainActor
     func makeTool(context: ToolContext) -> Tool {
         switch self {
         case .notch: NotchTool(settings: context.settings, hotKeys: context.hotKeys)
+        case .systemMonitor: SystemMonitorTool(settings: context.settings)
         }
     }
 }
