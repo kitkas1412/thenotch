@@ -12,13 +12,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let settings: AppSettings
     let updater: Updater
     let hotKeys: HotKeyCenter
+    let systemMonitor: SystemSampler
     private let toolHost: ToolHost
 
     override init() {
         settings = AppSettings()
         updater = Updater()
         hotKeys = HotKeyCenter()
-        toolHost = ToolHost(context: ToolContext(settings: settings, hotKeys: hotKeys))
+        systemMonitor = SystemSampler()
+        toolHost = ToolHost(context: ToolContext(settings: settings, hotKeys: hotKeys, systemMonitor: systemMonitor))
         super.init()
     }
 

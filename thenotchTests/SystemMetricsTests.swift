@@ -120,7 +120,10 @@ struct SystemMetricsTests {
         #expect(MetricFormat.capacity(bytes) == expected)
     }
 
-    @Test func intervalSecondsMatchRawValues() {
-        #expect(SystemMonitorInterval.allCases.map(\.seconds) == [1, 2, 5])
+    @Test(arguments: [
+        (true, true, true, true), (false, true, true, false), (true, false, true, false), (true, true, false, false),
+    ])
+    func samplesOnlyWhenEnabledVisibleAndAwake(enabled: Bool, panel: Bool, ambient: Bool, expected: Bool) {
+        #expect(SystemSampling.shouldSample(isEnabled: enabled, isPanelVisible: panel, ambientVisible: ambient) == expected)
     }
 }

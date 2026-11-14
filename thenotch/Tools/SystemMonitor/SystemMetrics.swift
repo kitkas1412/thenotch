@@ -8,30 +8,6 @@ import Foundation
 /// Pure math and formatting for the System Monitor, on plain values. The
 /// system calls live in `SystemReader`.
 
-/// What the menu bar shows.
-enum SystemMetric: String, CaseIterable, Identifiable, Hashable {
-    case cpu, memory, network
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .cpu: "CPU"
-        case .memory: "Memory"
-        case .network: "Network"
-        }
-    }
-}
-
-/// How often the sampler reads while the popover is closed.
-enum SystemMonitorInterval: Int, CaseIterable, Identifiable {
-    case one = 1, two = 2, five = 5
-
-    var id: Int { rawValue }
-    var seconds: TimeInterval { TimeInterval(rawValue) }
-    var title: String { "\(rawValue) s" }
-}
-
 /// Cumulative CPU ticks (all cores together) since boot.
 struct CPUTicks: Equatable {
     var user: UInt64

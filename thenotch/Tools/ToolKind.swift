@@ -29,7 +29,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
     var summary: String {
         switch self {
         case .notch: "A Dynamic Island around the MacBook notch."
-        case .systemMonitor: "CPU, memory, network and disk in the menu bar."
+        case .systemMonitor: "CPU, memory, network and disk in the thenotch menu."
         }
     }
 
@@ -40,7 +40,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
     func makeTool(context: ToolContext) -> Tool {
         switch self {
         case .notch: NotchTool(settings: context.settings, hotKeys: context.hotKeys)
-        case .systemMonitor: SystemMonitorTool(settings: context.settings)
+        case .systemMonitor: SystemMonitorTool(sampler: context.systemMonitor)
         }
     }
 }
