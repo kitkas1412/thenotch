@@ -46,7 +46,7 @@ final class ClaudeCodeModule: IslandModule {
             try server.start()
         } catch {
             Log.claude.error("Can't listen for Claude Code hooks: \(String(describing: error), privacy: .public)")
-            ClaudeCodeStatus.shared.problem = "thenotch can't listen for Claude Code or Codex."
+            ClaudeCodeStatus.shared.problem = "\(AppIdentity.name) can't listen for Claude Code or Codex."
             return
         }
         let socketPath = server.path
@@ -234,10 +234,10 @@ final class ClaudeCodeStatus {
         case .failure(let error):
             Log.claude.error("Can't add hooks to Claude Code settings: \(String(describing: error), privacy: .public)")
             problem = error as? ClaudeHooksConfig.ConfigError == .unexpectedShape
-                ? "~/.claude/settings.json has an unexpected \"hooks\" format, so thenotch left it alone."
+                ? "~/.claude/settings.json has an unexpected \"hooks\" format, so \(AppIdentity.name) left it alone."
                 : error as? ClaudeHooksConfig.ConfigError == .unreadable
-                ? "~/.claude/settings.json isn't valid JSON, so thenotch left it alone."
-                : "thenotch can't update ~/.claude/settings.json."
+                ? "~/.claude/settings.json isn't valid JSON, so \(AppIdentity.name) left it alone."
+                : "\(AppIdentity.name) can't update ~/.claude/settings.json."
         }
         // Skipped silently when Codex isn't installed.
         let codex = await Task.detached {
@@ -249,10 +249,10 @@ final class ClaudeCodeStatus {
         case .failure(let error):
             Log.claude.error("Can't add hooks to Codex hooks file: \(String(describing: error), privacy: .public)")
             codexProblem = error as? CodexHooksConfig.ConfigError == .unexpectedShape
-                ? "~/.codex/hooks.json has an unexpected \"hooks\" format, so thenotch left it alone."
+                ? "~/.codex/hooks.json has an unexpected \"hooks\" format, so \(AppIdentity.name) left it alone."
                 : error as? CodexHooksConfig.ConfigError == .unreadable
-                ? "~/.codex/hooks.json isn't valid JSON, so thenotch left it alone."
-                : "thenotch can't update ~/.codex/hooks.json."
+                ? "~/.codex/hooks.json isn't valid JSON, so \(AppIdentity.name) left it alone."
+                : "\(AppIdentity.name) can't update ~/.codex/hooks.json."
         }
     }
 

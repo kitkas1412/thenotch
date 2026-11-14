@@ -9,7 +9,7 @@ import os
 /// Unified logging, viewable in Console.app or with
 /// `log stream --level debug --predicate 'subsystem == "<bundle id>"'`.
 enum Log {
-    private static let subsystem = Bundle.main.bundleIdentifier ?? "thenotch"
+    private static let subsystem = AppIdentity.logSubsystem
 
     /// Dragging files onto the island and dropping them.
     static let drop = Logger(subsystem: subsystem, category: "drop")

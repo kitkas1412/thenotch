@@ -53,7 +53,7 @@ private struct GeneralSettingsPane: View {
                 ))
                 if settings.launchAtLoginStatus == .requiresApproval {
                     SettingsNotice(
-                        "Allow thenotch in Login Items to finish turning this on.",
+                        "Allow \(AppIdentity.name) in Login Items to finish turning this on.",
                         kind: .actionNeeded,
                         action: ("Open Login Items…", { SMAppService.openSystemSettingsLoginItems() })
                     )
@@ -156,7 +156,7 @@ private struct ModulesSettingsPane: View {
                     Text(lifetime.title).tag(lifetime)
                 }
             }
-            SettingsNote("Files from Finder stay where they are; the shelf only points to them. Images and other content dragged from apps are saved by thenotch and deleted when they leave the shelf.")
+            SettingsNote("Files from Finder stay where they are; the shelf only points to them. Images and other content dragged from apps are saved by \(AppIdentity.name) and deleted when they leave the shelf.")
         case .hud:
             if !isAccessibilityTrusted {
                 SettingsNotice(

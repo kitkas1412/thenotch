@@ -26,8 +26,7 @@ enum FileDrop {
     /// Where dropped content is saved, one folder per file:
     /// `~/Library/Application Support/<bundle id>/Dropped/<uuid>/<name>`.
     static var directory: URL {
-        URL.applicationSupportDirectory
-            .appendingPathComponent(Bundle.main.bundleIdentifier ?? "thenotch", isDirectory: true)
+        AppIdentity.supportDirectory
             .appendingPathComponent("Dropped", isDirectory: true)
     }
 

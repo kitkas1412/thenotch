@@ -162,7 +162,7 @@ struct IslandView: View {
         } else {
             // Every module is switched off.
             ModulePage {
-                IslandEmptyState(title: "No modules are on", message: "Turn one on in thenotch Settings.")
+                IslandEmptyState(title: "No modules are on", message: "Turn one on in \(AppIdentity.name) Settings.")
             }
         }
     }
