@@ -65,18 +65,24 @@ final class ClaudeCodeModule: IslandModule {
     }
 
     func stop() {
-        pruneTask?.cancel()
-        peekTask?.cancel()
-        widthTask?.cancel()
-        widthTask = nil
-        if let server {
-            let socketPath = server.path
-            server.stop()
-            // Turned off: take the hooks out of Claude Code's settings.
+        let socketPath = server?.path
+        suspend()
+        // Turned off: take the hooks out of Claude Code's settings.
+        if let socketPath {
             Task {
                 await ClaudeCodeStatus.shared.uninstallHooks(socketPath: socketPath)
             }
         }
+    }
+
+    /// Stops listening but leaves the hooks in place: they fail silently
+    /// (`|| true`) while nothing listens, and `start()` finds them again.
+    func suspend() {
+        pruneTask?.cancel()
+        peekTask?.cancel()
+        widthTask?.cancel()
+        widthTask = nil
+        server?.stop()
         server = nil
         model.sessions = ClaudeSessions()
         model.peek = nil

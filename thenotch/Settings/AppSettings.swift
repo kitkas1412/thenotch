@@ -118,6 +118,10 @@ final class AppSettings {
     private(set) var enabledModules: [ModuleKind]
     /// Called after a module is switched on or off.
     @ObservationIgnored var onModulesChange: (() -> Void)?
+    /// Enabled tools, in `ToolKind.allCases` order.
+    private(set) var enabledTools: [ToolKind]
+    /// Called after a tool is switched on or off.
+    @ObservationIgnored var onToolsChange: (() -> Void)?
 
     var shelfLifetime: ShelfLifetime {
         didSet { defaults.set(shelfLifetime.rawValue, forKey: Self.shelfLifetimeKey) }
@@ -133,6 +137,9 @@ final class AppSettings {
         enabledModules = ModuleKind.allCases.filter {
             defaults.object(forKey: Self.key(for: $0)) as? Bool ?? $0.isOnByDefault
         }
+        enabledTools = ToolKind.allCases.filter {
+            defaults.object(forKey: Self.key(for: $0)) as? Bool ?? $0.isOnByDefault
+        }
         shelfLifetime = defaults.string(forKey: Self.shelfLifetimeKey).flatMap(ShelfLifetime.init) ?? .day
     }
 
@@ -145,6 +152,17 @@ final class AppSettings {
         defaults.set(enabled, forKey: Self.key(for: kind))
         enabledModules = ModuleKind.allCases.filter { $0 == kind ? enabled : isEnabled($0) }
         onModulesChange?()
+    }
+
+    func isToolEnabled(_ kind: ToolKind) -> Bool {
+        enabledTools.contains(kind)
+    }
+
+    func setToolEnabled(_ kind: ToolKind, _ enabled: Bool) {
+        guard enabled != isToolEnabled(kind) else { return }
+        defaults.set(enabled, forKey: Self.key(for: kind))
+        enabledTools = ToolKind.allCases.filter { $0 == kind ? enabled : isToolEnabled($0) }
+        onToolsChange?()
     }
 
     // MARK: Launch at login
@@ -176,5 +194,9 @@ final class AppSettings {
 
     private static func key(for kind: ModuleKind) -> String {
         "module.\(kind.rawValue).enabled"
+    }
+
+    private static func key(for kind: ToolKind) -> String {
+        "tool.\(kind.rawValue).enabled"
     }
 }

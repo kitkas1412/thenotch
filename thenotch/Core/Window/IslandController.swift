@@ -19,6 +19,10 @@ final class IslandController {
     let state = IslandState()
     private let settings: AppSettings
     private var panel: IslandPanel?
+    /// Between `start()` and `stop()`.
+    private var isStarted = false
+    /// Bumped by `stop()`, so a pending `observeExpandableContent` doesn't re-arm.
+    private var expandableContentGeneration = 0
     /// Notch rect (screen coordinates) on the current target screen.
     private var notch: CGRect = .zero
     private var screenObserver: NSObjectProtocol?
@@ -39,6 +43,8 @@ final class IslandController {
     private var dragChangeCountAtMouseDown: Int?
     /// Ends the drop-target state shortly after the mouse button is released.
     private var pendingDragEnd: Task<Void, Never>?
+    /// Polls the mouse button while something is dragged out of the island.
+    private var dragOutTask: Task<Void, Never>?
     /// Keeps the island open while it shrinks under the pointer.
     private var shrinkGrace = HoverPolicy.ShrinkGrace()
     /// The island opened by itself for an activity (`LiveActivity.presents`).
@@ -64,6 +70,8 @@ final class IslandController {
     }
 
     func start() {
+        guard !isStarted else { return }
+        isStarted = true
         let panel = IslandPanel(contentRect: CGRect(origin: .zero, size: Self.panelSize))
 
         let hostingView = IslandHostingView(rootView: IslandView(state: state))
@@ -114,6 +122,66 @@ final class IslandController {
         }
     }
 
+    /// Takes the island down: closes it, removes every monitor and observer,
+    /// cancels pending work and suspends the modules (`IslandModule.suspend`).
+    /// A later `start()` begins afresh. Does nothing unless started.
+    func stop() {
+        guard isStarted else { return }
+        // Before the modules go: removing their activities must not end a
+        // presentation or present.
+        state.activities.onPresent = nil
+        state.activities.onRemove = nil
+        settings.onModulesChange = nil
+        state.onDragOutBegan = nil
+
+        close(animated: false)  // ends a presentation, stops the Esc monitor
+        isStarted = false
+
+        removeMouseMonitors()
+        if let screenObserver {
+            NotificationCenter.default.removeObserver(screenObserver)
+        }
+        screenObserver = nil
+        menuObservers.forEach(NotificationCenter.default.removeObserver)
+        menuObservers = []
+        for (center, token) in ambientObservers {
+            center.removeObserver(token)
+        }
+        ambientObservers = []
+        if let accessibilityObserver {
+            DistributedNotificationCenter.default().removeObserver(accessibilityObserver)
+        }
+        accessibilityObserver = nil
+        expandableContentGeneration += 1
+
+        pendingDragEnd?.cancel()
+        pendingDragEnd = nil
+        dragOutTask?.cancel()
+        dragOutTask = nil
+
+        for module in state.modules.reversed() {
+            module.suspend()
+        }
+        state.modules = []
+
+        state.mode = .compact
+        state.pinnedModuleID = nil
+        state.isHovering = false
+        state.isDraggingFiles = false
+        state.isDraggingOut = false
+        state.ambient = AmbientConditions()
+        isTrackingMenu = false
+        dragChangeCountAtMouseDown = nil
+        shrinkGrace.reset()
+
+        if let panel {
+            panel.orderOut(nil)
+            (panel.contentView as? IslandHostingView<IslandView>)?.onMouseMoved = nil
+            panel.contentView = nil
+        }
+        panel = nil
+    }
+
     /// Starts newly enabled modules and stops disabled ones, keeping
     /// `ModuleKind` order. A disabled module is never started.
     private func applyModuleSettings() {
@@ -136,13 +204,14 @@ final class IslandController {
     /// Re-evaluates hover when what the island can show changes (a module's
     /// content or the activities come and go) while the pointer rests on it.
     private func observeExpandableContent() {
+        let generation = expandableContentGeneration
         withObservationTracking {
             _ = state.expandedModule
         } onChange: { [weak self] in
             // Fires before the change lands: look after it.
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
-                    guard let self else { return }
+                    guard let self, self.expandableContentGeneration == generation else { return }
                     self.mouseMoved()
                     self.observeExpandableContent()
                 }
@@ -385,7 +454,7 @@ final class IslandController {
     /// Tracks the pointer over the compact island: it grows (hover) and
     /// takes the mouse so a click opens it. Never opens or closes by itself.
     private func mouseMoved() {
-        guard !state.isExpanded else { return }
+        guard isStarted, !state.isExpanded else { return }
         let canHover = state.expandedModule != nil && !isInteractionBlocked
         let action = HoverPolicy.hoverAction(
             isHovering: state.isHovering,
@@ -512,11 +581,12 @@ final class IslandController {
     private func dragOutBegan() {
         guard !state.isDraggingOut else { return }
         state.isDraggingOut = true
-        Task { [weak self] in
-            while NSEvent.pressedMouseButtons & 1 != 0 {
+        dragOutTask = Task { [weak self] in
+            while NSEvent.pressedMouseButtons & 1 != 0, !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(100))
             }
-            guard let self else { return }
+            guard let self, !Task.isCancelled else { return }
+            self.dragOutTask = nil
             self.state.isDraggingOut = false
             self.mouseMoved()
         }

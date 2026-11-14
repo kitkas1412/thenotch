@@ -17,7 +17,13 @@ protocol IslandModule: AnyObject {
     var id: String { get }
 
     func start()
+    /// The user turned the module off.
     func stop()
+    /// The island is going away (the Notch tool was turned off) while the
+    /// module stays on in Settings: stop working, but keep anything the
+    /// user set up by turning it on (AI Agents keeps its hooks). A later
+    /// `start()` on a new instance resumes. Defaults to `stop()`.
+    func suspend()
 
     /// Shown left of the notch while this module's activity is current.
     func compactLeading() -> AnyView
@@ -56,6 +62,10 @@ protocol IslandModule: AnyObject {
 }
 
 extension IslandModule {
+    func suspend() {
+        stop()
+    }
+
     func islandDidExpand() {}
 
     func islandDidCollapse() {}
