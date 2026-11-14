@@ -20,6 +20,6 @@ final class NotchTool: Tool {
     }
 
     func stop() {
-        // No-op for now: the notch is always on in Phase 0. Teardown comes in Phase 1.
+        controller.stop()
     }
 }

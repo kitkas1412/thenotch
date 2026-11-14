@@ -29,6 +29,9 @@ final class ShelfModule: FileDropReceiving {
     private var terminationObserver: NSObjectProtocol?
     /// Items leaving now keep their owned files (see `onDraggedOut`).
     private var keepsOwnedFiles = false
+    /// Orphans are swept once per process: a Notch off/on creates a new
+    /// module, and files kept after a copy drag-out may still be read.
+    private static var hasSweptOrphans = false
 
     init(
         activities: ActivityCenter,
@@ -54,7 +57,10 @@ final class ShelfModule: FileDropReceiving {
         Task { [weak self] in
             await self?.store.load()
             guard let self, self.isRunning else { return }
-            self.deleteOrphanedFiles(createdBefore: startedAt)
+            if !Self.hasSweptOrphans {
+                Self.hasSweptOrphans = true
+                self.deleteOrphanedFiles(createdBefore: startedAt)
+            }
             self.prune()
         }
         observeLifetime()

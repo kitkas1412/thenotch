@@ -1,12 +1,13 @@
+import Foundation
 import Testing
 @testable import thenotch
 
 @MainActor
 private final class FakeTool: Tool {
     let id: String
-    private let log: Log
-    final class Log { var calls: [String] = [] }
-    init(id: String, log: Log) { self.id = id; self.log = log }
+    private let log: Calls
+    final class Calls { var calls: [String] = [] }
+    init(id: String, log: Calls) { self.id = id; self.log = log }
     func start() { log.calls.append("start:\(id)") }
     func stop() { log.calls.append("stop:\(id)") }
 }
@@ -23,7 +24,7 @@ struct ToolHostTests {
     }
 
     @Test func buildsOneToolPerKindAtInitWithoutStartingThem() {
-        let log = FakeTool.Log()
+        let log = FakeTool.Calls()
         var made: [ToolKind] = []
         let host = ToolHost(kinds: [.notch]) { kind in
             made.append(kind)
@@ -35,7 +36,7 @@ struct ToolHostTests {
     }
 
     @Test func startThenStopTracksRunningIDs() {
-        let log = FakeTool.Log()
+        let log = FakeTool.Calls()
         let host = ToolHost(kinds: [.notch]) { FakeTool(id: $0.id, log: log) }
         host.start()
         #expect(host.runningIDs == ["notch"])
@@ -45,7 +46,7 @@ struct ToolHostTests {
     }
 
     @Test func startingTwiceStartsEachToolOnce() {
-        let log = FakeTool.Log()
+        let log = FakeTool.Calls()
         let host = ToolHost(kinds: [.notch]) { FakeTool(id: $0.id, log: log) }
         host.start()
         host.start()
@@ -53,7 +54,7 @@ struct ToolHostTests {
     }
 
     @Test func stopWithoutStartDoesNothing() {
-        let log = FakeTool.Log()
+        let log = FakeTool.Calls()
         let host = ToolHost(kinds: [.notch]) { FakeTool(id: $0.id, log: log) }
         host.stop()
         #expect(log.calls.isEmpty)
@@ -61,7 +62,7 @@ struct ToolHostTests {
     }
 
     @Test func canRestartAfterStop() {
-        let log = FakeTool.Log()
+        let log = FakeTool.Calls()
         let host = ToolHost(kinds: [.notch]) { FakeTool(id: $0.id, log: log) }
         host.start(); host.stop(); host.start()
         #expect(log.calls == ["start:notch", "stop:notch", "start:notch"])
@@ -78,11 +79,83 @@ struct ToolHostTests {
         // Only one ToolKind exists; use ids via a make that returns several tools is
         // not possible (one per kind), so ordering is verified with a duplicate-free
         // single kind here and the reverse order is covered once more kinds exist.
-        let log = FakeTool.Log()
+        let log = FakeTool.Calls()
         let host = ToolHost(kinds: ToolKind.allCases) { FakeTool(id: $0.id, log: log) }
         host.start(); host.stop()
         let expectedStart = ToolKind.allCases.map { "start:\($0.id)" }
         let expectedStop = ToolKind.allCases.reversed().map { "stop:\($0.id)" }
         #expect(log.calls == expectedStart + expectedStop)
+    }
+
+    // MARK: With settings
+
+    private func makeSettings(_ toolEnabled: Bool? = nil) -> AppSettings {
+        let suite = "thenotchTests.ToolHost.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let settings = AppSettings(defaults: defaults)
+        if let toolEnabled { settings.setToolEnabled(.notch, toolEnabled) }
+        return settings
+    }
+
+    @Test func initWithSettingsInstallsChangeHandler() {
+        let settings = makeSettings()
+        #expect(settings.onToolsChange == nil)
+        _ = ToolHost(kinds: [.notch], settings: settings) { FakeTool(id: $0.id, log: FakeTool.Calls()) }
+        #expect(settings.onToolsChange != nil)
+    }
+
+    @Test func startSkipsDisabledTools() {
+        let calls = FakeTool.Calls()
+        let host = ToolHost(kinds: [.notch], settings: makeSettings(false)) { FakeTool(id: $0.id, log: calls) }
+        host.start()
+        #expect(calls.calls.isEmpty)
+        #expect(host.runningIDs.isEmpty)
+    }
+
+    @Test func enablingWhileStartedStartsTheTool() {
+        let calls = FakeTool.Calls()
+        let settings = makeSettings(false)
+        let host = ToolHost(kinds: [.notch], settings: settings) { FakeTool(id: $0.id, log: calls) }
+        host.start()
+        settings.setToolEnabled(.notch, true)
+        #expect(calls.calls == ["start:notch"])
+        #expect(host.runningIDs == ["notch"])
+    }
+
+    @Test func disablingWhileStartedStopsTheTool() {
+        let calls = FakeTool.Calls()
+        let settings = makeSettings()
+        let host = ToolHost(kinds: [.notch], settings: settings) { FakeTool(id: $0.id, log: calls) }
+        host.start()
+        #expect(host.runningIDs == ["notch"])
+        settings.setToolEnabled(.notch, false)
+        #expect(calls.calls == ["start:notch", "stop:notch"])
+        #expect(host.runningIDs.isEmpty)
+    }
+
+    @Test func togglingBeforeStartOrAfterStopDoesNothing() {
+        let calls = FakeTool.Calls()
+        let settings = makeSettings()
+        let host = ToolHost(kinds: [.notch], settings: settings) { FakeTool(id: $0.id, log: calls) }
+        settings.setToolEnabled(.notch, false)
+        settings.setToolEnabled(.notch, true)
+        #expect(calls.calls.isEmpty)
+        host.start()
+        host.stop()
+        calls.calls.removeAll()
+        settings.setToolEnabled(.notch, false)
+        settings.setToolEnabled(.notch, true)
+        #expect(calls.calls.isEmpty)
+        #expect(host.runningIDs.isEmpty)
+    }
+
+    @Test func settingToTheSameValueDoesNotRestartTheTool() {
+        let calls = FakeTool.Calls()
+        let settings = makeSettings()
+        let host = ToolHost(kinds: [.notch], settings: settings) { FakeTool(id: $0.id, log: calls) }
+        host.start()
+        settings.setToolEnabled(.notch, true)
+        #expect(calls.calls == ["start:notch"])
     }
 }
