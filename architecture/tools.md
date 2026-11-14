@@ -1,6 +1,6 @@
 # Tools
 
-Detailed reference split out of [CLAUDE.md](../CLAUDE.md): System Monitor, Clipboard and Window Management (`thenotch/Tools/`).
+Detailed reference split out of [CLAUDE.md](../CLAUDE.md): System Monitor, Clipboard, Window Management and Quit on Close (`thenotch/Tools/`).
 
 ## System Monitor (`Tools/SystemMonitor/`, `ToolKind.systemMonitor`, off by default; public APIs only, no extra permission; temperatures and fan speeds aren't shown)
 
@@ -43,3 +43,19 @@ History of copies, kept encrypted on disk, shown in the island as a contributed 
 - A display action keeps the window's relative position and size, scaled to the target (`movedToDisplay`), or fills the target's visible area if it doesn't fit.
 - `WindowManagerTool` registers its hotkeys only while Accessibility is trusted: at start, on the Accessibility change notification (re-checked a second later, since the notification can arrive first) and on app activation; turning the tool off unregisters them.
 - It beeps when there is no focused window or the move fails; full-screen windows, windows without a readable frame, and display actions with a single display do nothing.
+
+## Quit on Close (`Tools/QuitOnClose/`, `ToolKind.quitOnClose`, off by default; needs Accessibility, `AccessibilityPermission`)
+
+Quits an app a moment after its last real window closes. A missed quit is fine, a false one is not: every condition below must hold, and anything unreadable skips. Logs (category `quitOnClose`) hold only the bundle ID and the skip reason.
+
+- **Gating** (`QuitOnCloseTool`): same pattern as Window Management. It watches only while Accessibility is trusted: at start, on the Accessibility change notification (re-checked a second later) and on app activation; without it, it detaches everything.
+- **Watching** (`AppWindowWatcher`): one `AXObserver` per regular app (not ours), attached one at a time, 20 ms apart, so a hung app can't hold the main thread. An app that refuses is tried at most twice per pid (reset when the permission changes or the app launches). A newly launched app is attached after 1 s and retried once, 2 s later. The watcher tracks the app's real windows and tells when one is created or destroyed.
+- **Scheduling**: a check is scheduled only when a tracked real window is destroyed, and cancelled when a window is created. It runs after `quitOnClose.delay` seconds (1, 2 or 5; default 2, `AppSettings.quitOnCloseDelays`).
+- **Decision** (`QuitDecision.decide`, pure; `WindowInventory` holds the classification and the readers). It quits with `NSRunningApplication.terminate()` only if all hold:
+  - The AX window list was read and has no real window (`WindowInventory.isRealWindow`: only `AXFloatingWindow` and `AXSystemFloatingWindow` don't count; a missing subrole does).
+  - The CG window list (`CGWindowListCopyWindowInfo`, `.optionAll`; never window names, so no Screen Recording) has no window of the pid that is layer 0, alpha > 0, at least 40 pt on both sides, on a Space and ordered in. Both Space checks use private SkyLight functions looked up by name (`SLSCopySpacesForWindows`, `SLSWindowIsOrderedIn`, with `CGS` fallbacks); if they are missing or fail, the app is skipped (logged once).
+  - Why both: AppKit keeps closed windows ordered out but still listed (TextEdit's 500x500 window; Spotify's closed main window keeps its Space but is ordered out), while windows on other Spaces or in full screen are ordered in. A field that is unknown counts as visible.
+  - The app is running, finished launching, not hidden, regular and frontmost.
+  - Its bundle ID isn't ours or in `QuitDecision.neverQuit` (Finder, Dock, SystemUIServer, NotificationCenter, Spotlight, loginwindow) and the mode allows it.
+- **Settings** (`QuitOnClosePane`): `quitOnClose.mode` (`QuitOnCloseMode`: all except the listed apps, the default, or only the listed apps) and `quitOnClose.apps` (bundle IDs).
+- **Limit**: `kAXWindowsAttribute` doesn't list windows on other Spaces. Apps that should keep running without windows (music players, downloads) belong in the exclusion list.
