@@ -27,7 +27,7 @@ struct MenuPanel: View {
             }
 
             VStack(alignment: .leading, spacing: 0) {
-                if settings.isToolEnabled(.clipboard) {
+                if settings.isToolEnabled(.clipboard), settings.isToolEnabled(.notch) {
                     MenuRow(
                         title: "Clipboard History…",
                         shortcut: settings.shortcut(for: ShortcutAction.clipboardShowHistory.id)?.displayString

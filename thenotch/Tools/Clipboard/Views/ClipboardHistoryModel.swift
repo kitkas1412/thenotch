@@ -20,8 +20,6 @@ final class ClipboardHistoryModel {
     @ObservationIgnored let tool: ClipboardTool
     @ObservationIgnored var onChoose: (ClipboardItem, Bool) -> Void = { _, _ in }
     @ObservationIgnored var onClose: () -> Void = {}
-    /// The panel showing it, so the view reacts to that window only.
-    @ObservationIgnored weak var window: NSWindow?
 
     /// Where the pointer was when hover last selected a row (or when the
     /// panel opened): a row appearing under a still pointer (opening,
@@ -106,7 +104,8 @@ final class ClipboardHistoryModel {
         let code = Int(event.keyCode)
         switch code {
         case kVK_Escape:
-            onClose()
+            // First Esc clears the search; the next closes the island.
+            if query.isEmpty { onClose() } else { query = "" }
             return true
         case kVK_UpArrow where flags.isEmpty:
             move(-1)

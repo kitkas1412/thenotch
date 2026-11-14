@@ -5,28 +5,27 @@
 
 import SwiftUI
 
-/// The history panel's content: a search field over the list. System
-/// styles only (the panel sits on a material, unlike the island).
+/// The history inside the island: a search field over a one-line-per-row
+/// list, on the island's black with its tokens.
 struct ClipboardHistoryView: View {
     @Bindable var model: ClipboardHistoryModel
 
     @FocusState private var searchFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: IslandStyle.Spacing.s) {
             searchField
-            Divider()
             if let issue = model.store.lastStorageIssue {
                 issueBanner(issue)
-                Divider()
             }
             content
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .islandContentMargins()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear { searchFocused = true }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
-            // Only the history panel's own window.
-            guard let window = model.window, notification.object as? NSWindow === window else { return }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
+            // The island panel becomes key when this view is shown; other windows don't count.
+            guard (note.object as? NSWindow) is IslandPanel else { return }
             searchFocused = true
         }
         .accessibilityElement(children: .contain)
@@ -34,27 +33,41 @@ struct ClipboardHistoryView: View {
     }
 
     private var searchField: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: IslandStyle.Spacing.s) {
             Image(systemName: "magnifyingglass")
+                .font(.islandSymbol(.compact, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-            TextField("Search clipboard history", text: $model.query)
+            TextField("Search", text: $model.query)
                 .textFieldStyle(.plain)
-                .font(.title3)
+                .font(.islandLabel)
                 .focused($searchFocused)
                 .accessibilityLabel("Search clipboard history")
             if !model.query.isEmpty {
                 Button {
                     model.query = ""
                 } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.islandSymbol(.compact))
+                        .foregroundStyle(.secondary)
+                        .frame(width: IslandStyle.Size.smallControl, height: IslandStyle.Size.smallControl)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, IslandStyle.Spacing.s)
+        .frame(height: IslandStyle.Size.control)
+        .background(.island(.hover), in: RoundedRectangle(cornerRadius: IslandStyle.Radius.medium, style: .continuous))
+        .overlay {
+            // The field's focus indicator (HIG Focus and selection: a ring
+            // for a text field, a highlight for a list row).
+            if searchFocused {
+                RoundedRectangle(cornerRadius: IslandStyle.Radius.medium, style: .continuous)
+                    .strokeBorder(.island(.outline), lineWidth: IslandStyle.Size.dropBorder)
+            }
+        }
         .onChange(of: model.query) { _, _ in
             // The first match is the one Return pastes.
             if let first = model.items.first { model.select(first.id) }
@@ -64,27 +77,20 @@ struct ClipboardHistoryView: View {
     @ViewBuilder private var content: some View {
         let items = model.items
         if !model.store.isLoaded && items.isEmpty {
-            VStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text("Loading…").font(.callout).foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityElement(children: .combine)
+            ProgressView()
+                .controlSize(.small)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityLabel("Loading")
         } else if items.isEmpty {
             let searching = !model.query.trimmingCharacters(in: .whitespaces).isEmpty
-            VStack(spacing: 6) {
+            VStack(spacing: IslandStyle.Spacing.xs) {
                 Image(systemName: searching ? "magnifyingglass" : "doc.on.clipboard")
-                    .font(.largeTitle)
-                    .foregroundStyle(.tertiary)
+                    .font(.islandSymbol(.large))
                     .accessibilityHidden(true)
                 Text(searching ? "No matches" : "Nothing copied yet")
-                    .font(.headline)
-                if !searching {
-                    Text("Things you copy show up here.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
+                    .font(.islandHeadline)
             }
+            .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityElement(children: .combine)
         } else {
@@ -96,7 +102,7 @@ struct ClipboardHistoryView: View {
         let selected = model.selectedItem?.id
         return ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 2) {
+                LazyVStack(spacing: IslandStyle.Spacing.xxs) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         ClipboardRow(
                             item: item,
@@ -110,21 +116,22 @@ struct ClipboardHistoryView: View {
                         .id(item.id)
                     }
                 }
-                .padding(6)
             }
+            .scrollIndicators(.never)
             .onChange(of: model.scrollRequest) { _, _ in
-                if let selected { proxy.scrollTo(selected) }
+                guard let selected else { return }
+                // No animation: arrow keys repeat, and motion on a frequent
+                // interaction only makes people wait (HIG Motion).
+                proxy.scrollTo(selected)
             }
         }
     }
 
     private func issueBanner(_ issue: ClipboardStore.StorageIssue) -> some View {
         Label(issue.message, systemImage: "exclamationmark.triangle.fill")
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            .symbolRenderingMode(.multicolor)
+            .font(.islandLabel)
+            .foregroundStyle(IslandSignal.attention)
+            .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
     }
 }

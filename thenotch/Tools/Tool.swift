@@ -19,4 +19,5 @@ struct ToolContext {
     let settings: AppSettings
     let hotKeys: HotKeyCenter
     let systemMonitor: SystemSampler
+    let islandContributions: IslandContributions
 }

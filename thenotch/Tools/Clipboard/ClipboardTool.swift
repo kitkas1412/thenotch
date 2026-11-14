@@ -6,17 +6,8 @@
 import AppKit
 import Observation
 
-/// What the Clipboard tool needs from the history panel (the UI implements
-/// it and sets `ClipboardTool.presenter`).
-@MainActor
-protocol ClipboardPanelPresenting: AnyObject {
-    /// Show the history panel (the shortcut was pressed). The tool has
-    /// already remembered the frontmost app (`historyOpened(frontmost:)`).
-    func showClipboardHistory()
-}
-
 /// Clipboard history: records copies, keeps them encrypted on disk, and
-/// pastes one back on request. The shortcut opens the panel.
+/// pastes one back on request. The shortcut opens it in the island.
 @MainActor
 @Observable
 final class ClipboardTool: Tool {
@@ -26,10 +17,6 @@ final class ClipboardTool: Tool {
     private(set) var store: ClipboardStore
     private(set) var monitor: ClipboardMonitor
     private(set) var paster: ClipboardPaster
-    /// Implemented by the history panel; `nil` until it exists.
-    @ObservationIgnored weak var presenter: ClipboardPanelPresenting?
-    /// Keeps the history panel alive while the tool runs (`presenter` is weak).
-    @ObservationIgnored private var panelController: ClipboardPanelController?
     /// The running tool, for the menu panel and Settings, which don't own
     /// the `ToolHost`. `nil` while the tool is off.
     private(set) static weak var current: ClipboardTool?
@@ -39,6 +26,9 @@ final class ClipboardTool: Tool {
 
     @ObservationIgnored private let settings: AppSettings
     @ObservationIgnored private let hotKeys: HotKeyCenter
+    @ObservationIgnored private let contributions: IslandContributions
+    @ObservationIgnored private var islandModule: ClipboardIslandModule?
+    @ObservationIgnored private var hostObservation = 0
     @ObservationIgnored private var observation: ShortcutObservation?
     @ObservationIgnored private var terminateObserver: NSObjectProtocol?
     @ObservationIgnored private var startTask: Task<Void, Never>?
@@ -46,9 +36,10 @@ final class ClipboardTool: Tool {
     /// The app that was in front when the history opened: where to paste.
     @ObservationIgnored private var pasteTarget: NSRunningApplication?
 
-    init(settings: AppSettings, hotKeys: HotKeyCenter) {
+    init(settings: AppSettings, hotKeys: HotKeyCenter, contributions: IslandContributions) {
         self.settings = settings
         self.hotKeys = hotKeys
+        self.contributions = contributions
         let parts = Self.makeParts(settings: settings)
         store = parts.store
         monitor = parts.monitor
@@ -67,11 +58,12 @@ final class ClipboardTool: Tool {
     func start() {
         guard !isRunning else { return }
         isRunning = true
-        let controller = ClipboardPanelController(tool: self)
-        panelController = controller
-        presenter = controller
+        let module = ClipboardIslandModule(tool: self, contributions: contributions)
+        islandModule = module
+        contributions.add(module)
         Self.current = self
         register()
+        observeHost()
         observation = settings.observeShortcuts { [weak self] actionID in
             if actionID == ShortcutAction.clipboardShowHistory.id { self?.register() }
         }
@@ -102,9 +94,9 @@ final class ClipboardTool: Tool {
     func stop() {
         guard isRunning else { return }
         isRunning = false
-        panelController?.close()
-        panelController = nil
-        presenter = nil
+        contributions.remove(id: id)
+        islandModule = nil
+        hostObservation += 1
         if Self.current === self { Self.current = nil }
         startTask?.cancel()
         startTask = nil
@@ -133,17 +125,15 @@ final class ClipboardTool: Tool {
         paster = parts.paster
     }
 
-    // MARK: For the panel
+    // MARK: For the island
 
-    /// Opens the history panel through `presenter`, remembering the app to
-    /// paste into. Beeps if there is no panel yet.
+    /// Opens, selects or closes the history in the island. Beeps if the
+    /// island isn't running (Notch is off).
     func showHistory() {
-        guard isRunning, let presenter else {
+        guard isRunning, contributions.show(id) else {
             NSSound.beep()
             return
         }
-        historyOpened(frontmost: NSWorkspace.shared.frontmostApplication)
-        presenter.showClipboardHistory()
     }
 
     /// Remembers the app that was in front when the history opened (thenotch
@@ -153,7 +143,7 @@ final class ClipboardTool: Tool {
         pasteTarget = isSelf ? nil : frontmost
     }
 
-    /// Pastes the entry into the remembered app. Call it after the panel
+    /// Pastes the entry into the remembered app. Call it after the island
     /// closed. `.copied` means ⌘V wasn't sent: say "Copied — press ⌘V".
     func paste(_ item: ClipboardItem, asPlainText: Bool) async -> ClipboardPaster.Result {
         await paster.paste(item, asPlainText: asPlainText, into: pasteTarget)
@@ -195,7 +185,8 @@ final class ClipboardTool: Tool {
 
     private func register() {
         let id = ShortcutAction.clipboardShowHistory.id
-        guard let shortcut = settings.shortcut(for: id) else {
+        // Without the island the shortcut would do nothing: leave the key to other apps.
+        guard contributions.isHostAvailable, let shortcut = settings.shortcut(for: id) else {
             hotKeys.unregister(id: id)
             return
         }
@@ -210,6 +201,21 @@ final class ClipboardTool: Tool {
             store.clearNow()
         } else {
             store.saveNow()
+        }
+    }
+
+    /// Registers the shortcut while the island runs; re-arms itself until
+    /// `stop()` bumps the generation.
+    private func observeHost() {
+        let generation = hostObservation
+        withObservationTracking {
+            _ = contributions.isHostAvailable
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self, isRunning, hostObservation == generation else { return }
+                register()
+                observeHost()
+            }
         }
     }
 

@@ -14,10 +14,10 @@ final class NotchTool: Tool {
     private let hotKeys: HotKeyCenter
     private var observation: ShortcutObservation?
 
-    init(settings: AppSettings, hotKeys: HotKeyCenter) {
+    init(settings: AppSettings, hotKeys: HotKeyCenter, contributions: IslandContributions) {
         self.settings = settings
         self.hotKeys = hotKeys
-        controller = IslandController(settings: settings)
+        controller = IslandController(settings: settings, contributions: contributions)
     }
 
     func start() {

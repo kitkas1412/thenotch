@@ -99,11 +99,11 @@ struct ClipboardSettingsTests {
     }
 
     @Test func pasteIsSentOnlyToTheTargetInFrontWithoutSecureInput() {
-        #expect(ClipboardPaster.maySendPaste(targetPID: 42, frontmostPID: 42, secureInput: false))
-        #expect(!ClipboardPaster.maySendPaste(targetPID: nil, frontmostPID: 42, secureInput: false))
-        #expect(!ClipboardPaster.maySendPaste(targetPID: nil, frontmostPID: nil, secureInput: false))
-        #expect(!ClipboardPaster.maySendPaste(targetPID: 42, frontmostPID: 7, secureInput: false))
-        #expect(!ClipboardPaster.maySendPaste(targetPID: 42, frontmostPID: 42, secureInput: true))
+        #expect(ClipboardPaster.maySendPaste(targetPID: 42, frontmostPID: 42, secureInput: false, ownWindowIsKey: false))
+        #expect(!ClipboardPaster.maySendPaste(targetPID: nil, frontmostPID: 42, secureInput: false, ownWindowIsKey: false))
+        #expect(!ClipboardPaster.maySendPaste(targetPID: nil, frontmostPID: nil, secureInput: false, ownWindowIsKey: false))
+        #expect(!ClipboardPaster.maySendPaste(targetPID: 42, frontmostPID: 7, secureInput: false, ownWindowIsKey: false))
+        #expect(!ClipboardPaster.maySendPaste(targetPID: 42, frontmostPID: 42, secureInput: true, ownWindowIsKey: false))
     }
 
     @Test func storageIssuesHaveMessages() {

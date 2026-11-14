@@ -37,7 +37,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
         case .notch: "A Dynamic Island around the MacBook notch."
         case .systemMonitor: "CPU, memory, network and disk in the thenotch menu."
         case .windowManagement: "Move and resize windows with keyboard shortcuts."
-        case .clipboard: "Clipboard history with search, opened with a shortcut."
+        case .clipboard: "Clipboard history with search, in the island."
         }
     }
 
@@ -47,10 +47,10 @@ enum ToolKind: String, CaseIterable, Identifiable {
     @MainActor
     func makeTool(context: ToolContext) -> Tool {
         switch self {
-        case .notch: NotchTool(settings: context.settings, hotKeys: context.hotKeys)
+        case .notch: NotchTool(settings: context.settings, hotKeys: context.hotKeys, contributions: context.islandContributions)
         case .systemMonitor: SystemMonitorTool(sampler: context.systemMonitor)
         case .windowManagement: WindowManagerTool(settings: context.settings, hotKeys: context.hotKeys)
-        case .clipboard: ClipboardTool(settings: context.settings, hotKeys: context.hotKeys)
+        case .clipboard: ClipboardTool(settings: context.settings, hotKeys: context.hotKeys, contributions: context.islandContributions)
         }
     }
 }

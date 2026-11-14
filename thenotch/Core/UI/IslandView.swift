@@ -203,9 +203,15 @@ private struct ModulePager: View {
         HStack(alignment: .top, spacing: 0) {
             ForEach(Array(modules.enumerated()), id: \.element.id) { offset, module in
                 let isShown = offset == index
-                ModulePage(module: module)
-                    .allowsHitTesting(isShown)
-                    .accessibilityHidden(!isShown)
+                if isShown || !(module is any ContributedIslandModule) {
+                    ModulePage(module: module)
+                        .allowsHitTesting(isShown)
+                        .accessibilityHidden(!isShown)
+                } else {
+                    // A contributed module (the clipboard history) renders
+                    // only while shown: it holds private, changing content.
+                    Color.clear.frame(width: module.expandedWidth, height: 0)
+                }
             }
         }
         .offset(x: -widths.prefix(index).reduce(0, +))
@@ -278,18 +284,17 @@ private struct ModuleTabs: View {
         let shownID = state.expandedModule?.id
         HStack(spacing: IslandStyle.Spacing.xs) {
             ForEach(state.tabModules, id: \.id) { module in
-                let kind = ModuleKind(rawValue: module.id)
                 let isShown = module.id == shownID
                 Button {
                     withAnimation(IslandStyle.openAnimation) {
                         state.select(module.id)
                     }
                 } label: {
-                    Label(kind?.title ?? module.id, systemImage: kind?.symbol ?? "circle")
+                    Label(module.tabTitle, systemImage: module.tabSymbol)
                         .font(.islandSymbol(.compact, weight: .semibold))
                 }
                 .buttonStyle(.islandIcon(isSelected: isShown))
-                .help(kind?.title ?? module.id)
+                .help(module.tabTitle)
                 .accessibilityAddTraits(isShown ? .isSelected : [])
             }
         }

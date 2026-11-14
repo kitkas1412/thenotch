@@ -63,14 +63,16 @@ final class ClipboardPaster {
         guard Self.maySendPaste(
             targetPID: app.isTerminated ? nil : app.processIdentifier,
             frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
-            secureInput: IsSecureEventInputEnabled()
+            secureInput: IsSecureEventInputEnabled(),
+            ownWindowIsKey: NSApp.keyWindow is IslandPanel
         ) else { return .copied }
         return Self.postPaste() ? .pasted : .copied
     }
 
-    /// ⌘V goes only to the remembered app, in front, with Secure Input off.
-    nonisolated static func maySendPaste(targetPID: pid_t?, frontmostPID: pid_t?, secureInput: Bool) -> Bool {
-        guard let targetPID, !secureInput else { return false }
+    /// ⌘V goes only to the remembered app, in front, with Secure Input off
+    /// and the island panel not key (the island closes first).
+    nonisolated static func maySendPaste(targetPID: pid_t?, frontmostPID: pid_t?, secureInput: Bool, ownWindowIsKey: Bool) -> Bool {
+        guard let targetPID, !secureInput, !ownWindowIsKey else { return false }
         return frontmostPID == targetPID
     }
 

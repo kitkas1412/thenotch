@@ -40,7 +40,7 @@ struct ClipboardPane: View {
                     )
                 )
                 if !isToolOn {
-                    SettingsNote("Turn Clipboard on to keep a history of what you copy and paste it back from under the notch.")
+                    SettingsNote("Turn Clipboard on to keep a history of what you copy and paste it back from the island.")
                 }
                 if isToolOn {
                     notices
@@ -76,6 +76,9 @@ struct ClipboardPane: View {
                         get: { settings.clipboardClearOnQuit },
                         set: { settings.clipboardClearOnQuit = $0 }
                     ))
+                    if settings.clipboardClearOnQuit {
+                        SettingsNote("Turning Clipboard off clears the history immediately.")
+                    }
                 }
 
                 Section("Ignored apps") {
@@ -112,6 +115,13 @@ struct ClipboardPane: View {
     }
 
     @ViewBuilder private var notices: some View {
+        if !settings.isToolEnabled(.notch) {
+            SettingsNotice(
+                "Clipboard history opens in the island. Turn on Notch to use it.",
+                kind: .actionNeeded,
+                action: ("Turn On Notch", { settings.setToolEnabled(.notch, true) })
+            )
+        }
         if settings.clipboardPastesDirectly && !isAccessibilityTrusted {
             SettingsNotice(
                 "Pasting straight into an app needs Accessibility access. Without it, an item is copied and you press ⌘V yourself.",
