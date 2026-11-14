@@ -12,6 +12,7 @@ final class NotchTool: Tool {
     private let controller: IslandController
     private let settings: AppSettings
     private let hotKeys: HotKeyCenter
+    private var observation: ShortcutObservation?
 
     init(settings: AppSettings, hotKeys: HotKeyCenter) {
         self.settings = settings
@@ -22,9 +23,7 @@ final class NotchTool: Tool {
     func start() {
         controller.start()
         registerToggleShortcut()
-        // For now this tool owns the callback; a router for several tools'
-        // shortcuts will replace it.
-        settings.onShortcutsChange = { [weak self] actionID in
+        observation = settings.observeShortcuts { [weak self] actionID in
             if actionID == ShortcutAction.notchToggle.id {
                 self?.registerToggleShortcut()
             }
@@ -32,7 +31,8 @@ final class NotchTool: Tool {
     }
 
     func stop() {
-        settings.onShortcutsChange = nil
+        observation?.cancel()
+        observation = nil
         hotKeys.unregister(id: ShortcutAction.notchToggle.id)
         controller.stop()
     }

@@ -69,6 +69,7 @@ extension ToolKind {
         switch self {
         case .notch: .teal
         case .systemMonitor: .green
+        case .windowManagement: .indigo
         }
     }
 }

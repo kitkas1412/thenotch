@@ -123,10 +123,14 @@ final class AppSettings {
     /// Called after a tool is switched on or off.
     @ObservationIgnored var onToolsChange: (() -> Void)?
 
-    /// Global shortcuts by action id (`ShortcutAction.id`), only the bound ones.
+    /// Effective global shortcuts by action id (`ShortcutAction.id`): the
+    /// user's, or the action's default until they record or clear one. Only
+    /// the bound ones.
     private(set) var shortcuts: [String: Shortcut]
-    /// Called with the action id after its shortcut really changed.
-    @ObservationIgnored var onShortcutsChange: ((String) -> Void)?
+    /// Actions whose shortcut the user cleared (stored as JSON `null`), so
+    /// the default doesn't come back.
+    @ObservationIgnored private var clearedShortcuts: Set<String> = []
+    @ObservationIgnored private var shortcutObservations: [WeakShortcutObservation] = []
 
     var shelfLifetime: ShelfLifetime {
         didSet { defaults.set(shelfLifetime.rawValue, forKey: Self.shelfLifetimeKey) }
@@ -145,11 +149,20 @@ final class AppSettings {
         enabledTools = ToolKind.allCases.filter {
             defaults.object(forKey: Self.key(for: $0)) as? Bool ?? $0.isOnByDefault
         }
-        shortcuts = Dictionary(uniqueKeysWithValues: ShortcutAction.all.compactMap { action in
-            defaults.data(forKey: Self.shortcutKey(for: action.id))
-                .flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }
-                .map { (action.id, $0) }
-        })
+        var shortcuts: [String: Shortcut] = [:]
+        var cleared: Set<String> = []
+        for action in ShortcutAction.all {
+            let data = defaults.data(forKey: Self.shortcutKey(for: action.id))
+            if let data, data == Self.clearedMarker {
+                cleared.insert(action.id)
+            } else if let shortcut = data.flatMap({ try? JSONDecoder().decode(Shortcut.self, from: $0) }) {
+                shortcuts[action.id] = shortcut
+            } else if let shortcut = action.defaultShortcut {
+                shortcuts[action.id] = shortcut
+            }
+        }
+        self.shortcuts = shortcuts
+        clearedShortcuts = cleared
         shelfLifetime = defaults.string(forKey: Self.shelfLifetimeKey).flatMap(ShelfLifetime.init) ?? .day
     }
 
@@ -177,20 +190,64 @@ final class AppSettings {
 
     // MARK: Shortcuts
 
+    /// The user's shortcut, the default if they haven't touched it, `nil`
+    /// if unbound or cleared.
     func shortcut(for actionID: String) -> Shortcut? {
         shortcuts[actionID]
     }
 
-    /// `nil` unbinds the action.
+    /// Binds the action; `nil` clears it (the default doesn't come back, see
+    /// `resetShortcut(for:)`).
     func setShortcut(_ shortcut: Shortcut?, for actionID: String) {
-        guard shortcut != shortcuts[actionID] else { return }
+        let defaultShortcut = Self.defaultShortcut(for: actionID)
+        let isCleared = shortcut == nil && defaultShortcut != nil
+        guard shortcut != shortcuts[actionID] || isCleared != clearedShortcuts.contains(actionID) else { return }
         if let shortcut, let data = try? JSONEncoder().encode(shortcut) {
             defaults.set(data, forKey: Self.shortcutKey(for: actionID))
+            clearedShortcuts.remove(actionID)
+        } else if defaultShortcut != nil {
+            defaults.set(Self.clearedMarker, forKey: Self.shortcutKey(for: actionID))
+            clearedShortcuts.insert(actionID)
         } else {
             defaults.removeObject(forKey: Self.shortcutKey(for: actionID))
+            clearedShortcuts.remove(actionID)
         }
         shortcuts[actionID] = shortcut
-        onShortcutsChange?(actionID)
+        notifyShortcutChange(actionID)
+    }
+
+    /// Back to the action's default shortcut (none for actions without one).
+    func resetShortcut(for actionID: String) {
+        let defaultShortcut = Self.defaultShortcut(for: actionID)
+        let wasStored = defaults.object(forKey: Self.shortcutKey(for: actionID)) != nil
+        guard wasStored || shortcuts[actionID] != defaultShortcut else { return }
+        defaults.removeObject(forKey: Self.shortcutKey(for: actionID))
+        clearedShortcuts.remove(actionID)
+        let changed = shortcuts[actionID] != defaultShortcut
+        shortcuts[actionID] = defaultShortcut
+        if changed { notifyShortcutChange(actionID) }
+    }
+
+    /// Calls `handler` with the action id after its shortcut really changed,
+    /// until the returned token is cancelled or released.
+    func observeShortcuts(_ handler: @escaping (String) -> Void) -> ShortcutObservation {
+        let observation = ShortcutObservation(handler: handler)
+        shortcutObservations.removeAll { $0.value == nil }
+        shortcutObservations.append(WeakShortcutObservation(observation))
+        return observation
+    }
+
+    private func notifyShortcutChange(_ actionID: String) {
+        shortcutObservations.removeAll { $0.value == nil }
+        for box in shortcutObservations {
+            box.value?.fire(actionID)
+        }
+    }
+
+    private static let clearedMarker = Data("null".utf8)
+
+    private static func defaultShortcut(for actionID: String) -> Shortcut? {
+        ShortcutAction.all.first { $0.id == actionID }?.defaultShortcut
     }
 
     // MARK: Launch at login
@@ -230,5 +287,32 @@ final class AppSettings {
 
     private static func key(for kind: ToolKind) -> String {
         "tool.\(kind.rawValue).enabled"
+    }
+}
+
+/// Token for `AppSettings.observeShortcuts`; keep it while observing.
+@MainActor
+final class ShortcutObservation {
+    private var handler: ((String) -> Void)?
+
+    fileprivate init(handler: @escaping (String) -> Void) {
+        self.handler = handler
+    }
+
+    func cancel() {
+        handler = nil
+    }
+
+    fileprivate func fire(_ actionID: String) {
+        handler?(actionID)
+    }
+}
+
+@MainActor
+private struct WeakShortcutObservation {
+    weak var value: ShortcutObservation?
+
+    init(_ value: ShortcutObservation) {
+        self.value = value
     }
 }

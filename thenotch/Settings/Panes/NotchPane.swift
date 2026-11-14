@@ -39,7 +39,7 @@ struct NotchPane: View {
 
             if isToolOn {
                 Section("Shortcuts") {
-                    ForEach(ShortcutAction.all) { action in
+                    ForEach(ShortcutAction.actions(for: .notch)) { action in
                         ShortcutRow(action: action, settings: settings, hotKeys: hotKeys)
                     }
                 }

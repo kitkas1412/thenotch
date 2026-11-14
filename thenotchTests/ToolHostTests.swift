@@ -18,7 +18,7 @@ struct ToolHostTests {
         let ids = ToolKind.allCases.map(\.id)
         #expect(Set(ids).count == ids.count)
         for kind in ToolKind.allCases { #expect(kind.id == kind.rawValue) }
-        #expect(ToolKind.allCases == [.notch, .systemMonitor])
+        #expect(ToolKind.allCases == [.notch, .systemMonitor, .windowManagement])
         #expect(ToolKind.notch.rawValue == "notch")
         #expect(ToolKind.notch.isOnByDefault)
         #expect(!ToolKind.systemMonitor.isOnByDefault)
