@@ -70,6 +70,7 @@ extension ToolKind {
         case .notch: .teal
         case .systemMonitor: .green
         case .windowManagement: .indigo
+        case .clipboard: .orange
         }
     }
 }

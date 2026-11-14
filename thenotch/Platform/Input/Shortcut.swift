@@ -171,6 +171,10 @@ struct ShortcutAction: Identifiable, Hashable, Sendable {
     static let notchToggle = ShortcutAction(
         id: "notch.toggle", title: "Open or close the island", tool: .notch)
 
+    static let clipboardShowHistory = ShortcutAction(
+        id: "clipboard.showHistory", title: "Show Clipboard History", tool: .clipboard,
+        defaultShortcut: Shortcut(keyCode: UInt32(kVK_ANSI_V), modifiers: [.control, .command]))
+
     /// Id of the shortcut that runs a window action.
     static func windowActionID(_ action: WindowAction) -> String {
         "windows.\(action.rawValue)"
@@ -186,7 +190,7 @@ struct ShortcutAction: Identifiable, Hashable, Sendable {
     }
 
     /// Every action with a shortcut setting.
-    static let all: [ShortcutAction] = [notchToggle] + windowActions
+    static let all: [ShortcutAction] = [notchToggle] + windowActions + [clipboardShowHistory]
 
     /// The actions of one tool, in display order.
     static func actions(for tool: ToolKind) -> [ShortcutAction] {

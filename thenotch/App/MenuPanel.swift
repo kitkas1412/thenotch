@@ -11,6 +11,7 @@ import SwiftUI
 struct MenuPanel: View {
     let sampler: SystemSampler
     let updater: Updater
+    let settings: AppSettings
 
     @Environment(\.openSettings) private var openSettings
     /// Reference type only: nothing here is mutated while the view updates.
@@ -26,6 +27,17 @@ struct MenuPanel: View {
             }
 
             VStack(alignment: .leading, spacing: 0) {
+                if settings.isToolEnabled(.clipboard) {
+                    MenuRow(
+                        title: "Clipboard History…",
+                        shortcut: settings.shortcut(for: ShortcutAction.clipboardShowHistory.id)?.displayString
+                    ) {
+                        panel.dismiss()
+                        ClipboardTool.current?.showHistory()
+                    }
+                    Divider().padding(.vertical, 4)
+                }
+
                 MenuRow(title: "Settings…", shortcut: "⌘,") {
                     panel.dismiss()
                     // An agent app isn't frontmost; bring the window forward.

@@ -15,7 +15,7 @@ struct thenotchApp: App {
         // LSUIElement apps have no Dock icon or app menu, so this panel is
         // the only way to reach Settings and to quit.
         MenuBarExtra(AppIdentity.name, systemImage: "capsule.fill") {
-            MenuPanel(sampler: appDelegate.systemMonitor, updater: appDelegate.updater)
+            MenuPanel(sampler: appDelegate.systemMonitor, updater: appDelegate.updater, settings: appDelegate.settings)
         }
         .menuBarExtraStyle(.window)
 
