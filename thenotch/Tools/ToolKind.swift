@@ -10,6 +10,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
     case systemMonitor
     case windowManagement
     case clipboard
+    case quitOnClose
 
     var id: String { rawValue }
 
@@ -19,6 +20,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
         case .systemMonitor: "System Monitor"
         case .windowManagement: "Window Management"
         case .clipboard: "Clipboard"
+        case .quitOnClose: "Quit on Close"
         }
     }
 
@@ -29,6 +31,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
         case .systemMonitor: "gauge.with.dots.needle.33percent"
         case .windowManagement: "rectangle.split.2x1"
         case .clipboard: "doc.on.clipboard"
+        case .quitOnClose: "xmark.app"
         }
     }
 
@@ -38,6 +41,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
         case .systemMonitor: "CPU, memory, network and disk in the thenotch menu."
         case .windowManagement: "Move and resize windows with keyboard shortcuts."
         case .clipboard: "Clipboard history with search, in the island."
+        case .quitOnClose: "Quits an app when you close its last window."
         }
     }
 
@@ -51,6 +55,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
         case .systemMonitor: SystemMonitorTool(sampler: context.systemMonitor)
         case .windowManagement: WindowManagerTool(settings: context.settings, hotKeys: context.hotKeys)
         case .clipboard: ClipboardTool(settings: context.settings, hotKeys: context.hotKeys, contributions: context.islandContributions)
+        case .quitOnClose: QuitOnCloseTool(settings: context.settings)
         }
     }
 }

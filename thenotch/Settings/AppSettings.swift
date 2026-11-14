@@ -109,6 +109,20 @@ enum ShelfLifetime: String, CaseIterable, Identifiable {
     }
 }
 
+/// Which apps Quit on Close applies to.
+enum QuitOnCloseMode: String, CaseIterable, Identifiable {
+    case allExceptListed, onlyListed
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .allExceptListed: "All apps except the list"
+        case .onlyListed: "Only the listed apps"
+        }
+    }
+}
+
 /// User preferences, persisted in `UserDefaults` (launch at login is owned
 /// by the system via `SMAppService`).
 @MainActor
@@ -159,6 +173,21 @@ final class AppSettings {
 
     static let clipboardLimits = [50, 100, 200, 500]
 
+    /// Which apps Quit on Close applies to.
+    var quitOnCloseMode: QuitOnCloseMode {
+        didSet { defaults.set(quitOnCloseMode.rawValue, forKey: Self.quitOnCloseModeKey) }
+    }
+    /// Seconds to wait after the last window closes, one of `quitOnCloseDelays`.
+    var quitOnCloseDelay: Int {
+        didSet { defaults.set(quitOnCloseDelay, forKey: Self.quitOnCloseDelayKey) }
+    }
+    /// Bundle IDs of the apps Quit on Close skips or is limited to, by mode.
+    var quitOnCloseApps: [String] {
+        didSet { defaults.set(quitOnCloseApps, forKey: Self.quitOnCloseAppsKey) }
+    }
+
+    static let quitOnCloseDelays = [1, 2, 5]
+
     private(set) var launchAtLoginStatus: SMAppService.Status = .notRegistered
     private(set) var launchAtLoginError: String?
 
@@ -193,6 +222,10 @@ final class AppSettings {
         clipboardIgnoredApps = defaults.stringArray(forKey: Self.clipboardIgnoredAppsKey) ?? []
         clipboardPastesDirectly = defaults.object(forKey: Self.clipboardPastesDirectlyKey) as? Bool ?? true
         clipboardRecordsRemote = defaults.object(forKey: Self.clipboardRecordsRemoteKey) as? Bool ?? true
+        quitOnCloseMode = defaults.string(forKey: Self.quitOnCloseModeKey).flatMap(QuitOnCloseMode.init) ?? .allExceptListed
+        let delay = defaults.integer(forKey: Self.quitOnCloseDelayKey)
+        quitOnCloseDelay = Self.quitOnCloseDelays.contains(delay) ? delay : 2
+        quitOnCloseApps = defaults.stringArray(forKey: Self.quitOnCloseAppsKey) ?? []
     }
 
     func isEnabled(_ kind: ModuleKind) -> Bool {
@@ -310,6 +343,9 @@ final class AppSettings {
     private static let clipboardIgnoredAppsKey = "clipboard.ignoredApps"
     private static let clipboardPastesDirectlyKey = "clipboard.pastesDirectly"
     private static let clipboardRecordsRemoteKey = "clipboard.recordsRemote"
+    private static let quitOnCloseModeKey = "quitOnClose.mode"
+    private static let quitOnCloseDelayKey = "quitOnClose.delay"
+    private static let quitOnCloseAppsKey = "quitOnClose.apps"
 
     private static func key(for kind: ModuleKind) -> String {
         "module.\(kind.rawValue).enabled"

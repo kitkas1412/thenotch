@@ -71,6 +71,7 @@ extension ToolKind {
         case .systemMonitor: .green
         case .windowManagement: .indigo
         case .clipboard: .orange
+        case .quitOnClose: .red
         }
     }
 }

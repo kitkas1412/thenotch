@@ -60,6 +60,9 @@ struct SettingsView: View {
             case .tool(.clipboard):
                 ClipboardPane(settings: settings, hotKeys: hotKeys)
                     .navigationTitle(ToolKind.clipboard.title)
+            case .tool(.quitOnClose):
+                QuitOnClosePane(settings: settings)
+                    .navigationTitle(ToolKind.quitOnClose.title)
             }
         }
         .frame(width: SettingsLayout.width, height: SettingsLayout.height)
