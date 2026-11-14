@@ -11,16 +11,16 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let settings: AppSettings
     let updater: Updater
-    private let islandController: IslandController
+    private let toolHost: ToolHost
 
     override init() {
         settings = AppSettings()
         updater = Updater()
-        islandController = IslandController(settings: settings)
+        toolHost = ToolHost(context: ToolContext(settings: settings))
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        islandController.start()
+        toolHost.start()
     }
 }

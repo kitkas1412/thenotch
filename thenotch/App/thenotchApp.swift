@@ -14,7 +14,7 @@ struct thenotchApp: App {
     var body: some Scene {
         // LSUIElement apps have no Dock icon or app menu, so this menu is
         // the only way to reach Settings and to quit.
-        MenuBarExtra("thenotch", systemImage: "capsule.fill") {
+        MenuBarExtra(AppIdentity.name, systemImage: "capsule.fill") {
             MenuContent(updater: appDelegate.updater)
         }
 
@@ -44,7 +44,7 @@ private struct MenuContent: View {
 
         Divider()
 
-        Button("Quit thenotch") {
+        Button("Quit \(AppIdentity.name)") {
             NSApp.terminate(nil)
         }
         .keyboardShortcut("q")

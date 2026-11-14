@@ -15,15 +15,14 @@ import os
 final class ClaudeHookServer: @unchecked Sendable {
     /// `~/Library/Application Support/<bundle id>/claude-hooks.sock`.
     static var defaultPath: String {
-        URL.applicationSupportDirectory
-            .appendingPathComponent(Bundle.main.bundleIdentifier ?? "thenotch", isDirectory: true)
+        AppIdentity.supportDirectory
             .appendingPathComponent("claude-hooks.sock")
             .path
     }
 
     let path: String
     private let onEvent: @MainActor (ClaudeHookEvent) -> Void
-    private let queue = DispatchQueue(label: "me.kitkas1412.thenotch.claude-hooks")
+    private let queue = DispatchQueue(label: AppIdentity.queueLabel("claude-hooks"))
     /// Touched only on `queue`.
     private var listener: Int32 = -1
     private var source: DispatchSourceRead?

@@ -124,7 +124,7 @@ enum AgentHooksFile {
         // The atomic write makes a new file: keep the original's permissions.
         let permissions = (try? manager.attributesOfItem(atPath: url.path))?[.posixPermissions]
         try manager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let backup = url.appendingPathExtension("thenotch-backup")
+        let backup = url.appendingPathExtension(AppIdentity.backupExtension)
         if manager.fileExists(atPath: url.path), !manager.fileExists(atPath: backup.path) {
             try manager.copyItem(at: url, to: backup)
         }

@@ -12,12 +12,11 @@ struct ShelfPersistence {
 
     /// Saves run here, in order: creating bookmarks touches the disk for
     /// every file, which mustn't block the main thread.
-    private static let queue = DispatchQueue(label: "me.kitkas1412.thenotch.shelf-persistence", qos: .utility)
+    private static let queue = DispatchQueue(label: AppIdentity.queueLabel("shelf-persistence"), qos: .utility)
 
     /// `~/Library/Application Support/<bundle id>/Shelf.json`
     static var standard: ShelfPersistence {
-        ShelfPersistence(fileURL: URL.applicationSupportDirectory
-            .appendingPathComponent(Bundle.main.bundleIdentifier ?? "thenotch", isDirectory: true)
+        ShelfPersistence(fileURL: AppIdentity.supportDirectory
             .appendingPathComponent("Shelf.json"))
     }
 

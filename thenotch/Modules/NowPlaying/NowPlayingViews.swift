@@ -131,7 +131,7 @@ struct NowPlayingExpandedView: View {
                     }
                     Spacer()
                     if service.permissionDenied {
-                        Button("Allow thenotch to control \(info.source.scriptName)…") {
+                        Button("Allow \(AppIdentity.name) to control \(info.source.scriptName)…") {
                             service.requestPermission()
                         }
                         .buttonStyle(.link)

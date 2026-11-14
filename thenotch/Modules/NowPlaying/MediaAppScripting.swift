@@ -25,7 +25,7 @@ enum MediaAppScripting {
         case failed(Int)
     }
 
-    private static let queue = DispatchQueue(label: "me.kitkas1412.thenotch.applescript")
+    private static let queue = DispatchQueue(label: AppIdentity.queueLabel("applescript"))
 
     static func isRunning(_ source: NowPlayingInfo.Source) -> Bool {
         !NSRunningApplication.runningApplications(withBundleIdentifier: source.bundleID).isEmpty

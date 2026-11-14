@@ -19,7 +19,7 @@ enum AgentSource: String, Equatable, CaseIterable {
     }
 
     /// The hook command's first line before the JSON: `thenotch-source: <raw value>`.
-    static let linePrefix = "thenotch-source: "
+    static let linePrefix = "\(AppIdentity.hookSourcePrefix): "
 
     /// The source named by the first line of a payload and the JSON after
     /// it. A payload without that line (hooks installed by an older
