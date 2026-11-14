@@ -35,7 +35,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
     @MainActor
     func makeTool(context: ToolContext) -> Tool {
         switch self {
-        case .notch: NotchTool(settings: context.settings)
+        case .notch: NotchTool(settings: context.settings, hotKeys: context.hotKeys)
         }
     }
 }

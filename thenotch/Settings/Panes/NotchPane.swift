@@ -12,6 +12,7 @@ import SwiftUI
 /// happens while the island runs).
 struct NotchPane: View {
     var settings: AppSettings
+    var hotKeys: HotKeyCenter
 
     @State private var isAccessibilityTrusted = AccessibilityPermission.isTrusted
     @State private var isBluetoothDenied = BluetoothPermission.isDenied
@@ -37,6 +38,12 @@ struct NotchPane: View {
             }
 
             if isToolOn {
+                Section("Shortcuts") {
+                    ForEach(ShortcutAction.all) { action in
+                        ShortcutRow(action: action, settings: settings, hotKeys: hotKeys)
+                    }
+                }
+
                 ForEach(ModuleKind.allCases) { kind in
                     Section {
                         SettingsToggleRow(

@@ -10,6 +10,7 @@ import SwiftUI
 struct SettingsView: View {
     var settings: AppSettings
     var updater: Updater
+    var hotKeys: HotKeyCenter
 
     @AppStorage("settings.pane") private var storedPane = SettingsPane.general.storedValue
 
@@ -48,7 +49,7 @@ struct SettingsView: View {
                 GeneralPane(settings: settings, updater: updater)
                     .navigationTitle("General")
             case .tool(.notch):
-                NotchPane(settings: settings)
+                NotchPane(settings: settings, hotKeys: hotKeys)
                     .navigationTitle(ToolKind.notch.title)
             }
         }

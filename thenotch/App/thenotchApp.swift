@@ -19,7 +19,7 @@ struct thenotchApp: App {
         }
 
         Settings {
-            SettingsView(settings: appDelegate.settings, updater: appDelegate.updater)
+            SettingsView(settings: appDelegate.settings, updater: appDelegate.updater, hotKeys: appDelegate.hotKeys)
         }
     }
 }

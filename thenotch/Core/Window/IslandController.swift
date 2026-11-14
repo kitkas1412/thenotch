@@ -608,6 +608,18 @@ final class IslandController {
         }
     }
 
+    /// The global shortcut: opens the island like a click (it's the user's,
+    /// so they close it as usual) or closes it. Does nothing before `start()`.
+    func toggleFromShortcut() {
+        guard isStarted else { return }
+        if state.isExpanded {
+            close(animated: true)
+        } else {
+            guard state.ambient.isVisible, !state.isDraggingFiles, !state.isDraggingOut, !isTrackingMenu else { return }
+            open()
+        }
+    }
+
     /// Opens on `moduleID`, or on the module `IslandState.expandedModule`
     /// picks.
     private func open(pinning moduleID: String? = nil) {
