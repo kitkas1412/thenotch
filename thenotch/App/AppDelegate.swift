@@ -32,6 +32,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Not in unit tests, which run inside the app: a second copy would
+        // fight the developer's running one over key taps and sockets.
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
         toolHost.start()
     }
 }
