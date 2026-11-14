@@ -17,4 +17,5 @@ protocol Tool: AnyObject {
 /// What a tool needs from the app to be built.
 struct ToolContext {
     let settings: AppSettings
+    let hotKeys: HotKeyCenter
 }

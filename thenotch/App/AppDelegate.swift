@@ -11,12 +11,14 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let settings: AppSettings
     let updater: Updater
+    let hotKeys: HotKeyCenter
     private let toolHost: ToolHost
 
     override init() {
         settings = AppSettings()
         updater = Updater()
-        toolHost = ToolHost(context: ToolContext(settings: settings))
+        hotKeys = HotKeyCenter()
+        toolHost = ToolHost(context: ToolContext(settings: settings, hotKeys: hotKeys))
         super.init()
     }
 

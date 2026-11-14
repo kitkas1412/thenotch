@@ -123,6 +123,11 @@ final class AppSettings {
     /// Called after a tool is switched on or off.
     @ObservationIgnored var onToolsChange: (() -> Void)?
 
+    /// Global shortcuts by action id (`ShortcutAction.id`), only the bound ones.
+    private(set) var shortcuts: [String: Shortcut]
+    /// Called with the action id after its shortcut really changed.
+    @ObservationIgnored var onShortcutsChange: ((String) -> Void)?
+
     var shelfLifetime: ShelfLifetime {
         didSet { defaults.set(shelfLifetime.rawValue, forKey: Self.shelfLifetimeKey) }
     }
@@ -140,6 +145,11 @@ final class AppSettings {
         enabledTools = ToolKind.allCases.filter {
             defaults.object(forKey: Self.key(for: $0)) as? Bool ?? $0.isOnByDefault
         }
+        shortcuts = Dictionary(uniqueKeysWithValues: ShortcutAction.all.compactMap { action in
+            defaults.data(forKey: Self.shortcutKey(for: action.id))
+                .flatMap { try? JSONDecoder().decode(Shortcut.self, from: $0) }
+                .map { (action.id, $0) }
+        })
         shelfLifetime = defaults.string(forKey: Self.shelfLifetimeKey).flatMap(ShelfLifetime.init) ?? .day
     }
 
@@ -163,6 +173,24 @@ final class AppSettings {
         defaults.set(enabled, forKey: Self.key(for: kind))
         enabledTools = ToolKind.allCases.filter { $0 == kind ? enabled : isToolEnabled($0) }
         onToolsChange?()
+    }
+
+    // MARK: Shortcuts
+
+    func shortcut(for actionID: String) -> Shortcut? {
+        shortcuts[actionID]
+    }
+
+    /// `nil` unbinds the action.
+    func setShortcut(_ shortcut: Shortcut?, for actionID: String) {
+        guard shortcut != shortcuts[actionID] else { return }
+        if let shortcut, let data = try? JSONEncoder().encode(shortcut) {
+            defaults.set(data, forKey: Self.shortcutKey(for: actionID))
+        } else {
+            defaults.removeObject(forKey: Self.shortcutKey(for: actionID))
+        }
+        shortcuts[actionID] = shortcut
+        onShortcutsChange?(actionID)
     }
 
     // MARK: Launch at login
@@ -194,6 +222,10 @@ final class AppSettings {
 
     private static func key(for kind: ModuleKind) -> String {
         "module.\(kind.rawValue).enabled"
+    }
+
+    private static func shortcutKey(for actionID: String) -> String {
+        "shortcut.\(actionID)"
     }
 
     private static func key(for kind: ToolKind) -> String {
