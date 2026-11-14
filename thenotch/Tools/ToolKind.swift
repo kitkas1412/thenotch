@@ -29,7 +29,7 @@ enum ToolKind: String, CaseIterable, Identifiable {
     var summary: String {
         switch self {
         case .notch: "A Dynamic Island around the MacBook notch."
-        case .systemMonitor: "CPU, memory, network, disk and battery in the menu bar."
+        case .systemMonitor: "CPU, memory, network and disk in the menu bar."
         }
     }
 

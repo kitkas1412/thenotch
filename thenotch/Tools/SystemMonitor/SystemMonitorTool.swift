@@ -7,7 +7,7 @@ import AppKit
 import Observation
 import SwiftUI
 
-/// CPU, memory, network, disk and battery in the menu bar: a status item
+/// CPU, memory, network and disk in the menu bar: a status item
 /// with the chosen metrics and a popover with all of them.
 @MainActor
 final class SystemMonitorTool: NSObject, Tool, NSPopoverDelegate {

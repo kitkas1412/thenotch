@@ -53,7 +53,7 @@ final class BatteryService {
         onChange?(new, previous)
     }
 
-    nonisolated static func readInternalBattery() -> BatteryStatus? {
+    private static func readInternalBattery() -> BatteryStatus? {
         guard let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
               let sources = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef]
         else { return nil }

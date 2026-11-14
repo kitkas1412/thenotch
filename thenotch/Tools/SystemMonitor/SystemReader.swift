@@ -14,8 +14,6 @@ struct SystemSnapshot: Equatable {
     var networkDown: Double = 0
     var networkUp: Double = 0
     var disk = DiskUsage(available: 0, total: 0)
-    /// `nil` on Macs without a battery.
-    var battery: BatteryStatus?
 }
 
 /// Thin wrappers over the system calls; no state.
@@ -134,7 +132,6 @@ actor SystemReader {
         if let disk = SystemCalls.disk() {
             snapshot.disk = disk
         }
-        snapshot.battery = BatteryService.readInternalBattery()
 
         last = snapshot
         return snapshot

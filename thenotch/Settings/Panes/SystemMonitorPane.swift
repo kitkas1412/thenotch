@@ -52,7 +52,7 @@ struct SystemMonitorPane: View {
                             Text(interval.title).tag(interval)
                         }
                     }
-                    SettingsNote("With none selected, the menu bar shows only the icon. Click it for the details, including disk and battery.")
+                    SettingsNote("With none selected, the menu bar shows only the icon. Click it for the details, including disk.")
                 }
 
                 Section {

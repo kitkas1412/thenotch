@@ -37,15 +37,6 @@ struct SystemMonitorPopoverView: View {
                 fraction: snapshot.disk.fraction,
                 spoken: "\(MetricFormat.capacity(snapshot.disk.available)) available of \(MetricFormat.capacity(snapshot.disk.total)), \(percentWords(snapshot.disk.fraction)) used"
             )
-            if let battery = snapshot.battery {
-                MetricBlock(
-                    title: "Battery",
-                    value: "\(battery.percent)%",
-                    detail: batteryState(battery),
-                    fraction: Double(battery.percent) / 100,
-                    spoken: "\(battery.percent) percent, \(batteryState(battery))"
-                )
-            }
 
             Divider()
 
@@ -80,12 +71,6 @@ struct SystemMonitorPopoverView: View {
 
     private func percentWords(_ fraction: Double) -> String {
         "\(Int((min(1, max(0, fraction)) * 100).rounded())) percent"
-    }
-
-    private func batteryState(_ battery: BatteryStatus) -> String {
-        if battery.isCharging { return "Charging" }
-        if battery.isPluggedIn { return "Plugged in" }
-        return "On battery"
     }
 
     private func openActivityMonitor() {
