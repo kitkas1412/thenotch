@@ -15,6 +15,7 @@ All notable changes to thenotch are documented here. The format follows
 ### Fixed
 
 - Running the tests no longer starts a second copy of the app's tools alongside the running one.
+- Clipboard: when loading the history and clearing it overlapped, the history could be sealed with a key that was no longer in the keychain (so it was lost at the next start), or an orphaned key could be left after clearing. Both are fixed.
 
 ## [0.9.0] - 2026-11-10
 
