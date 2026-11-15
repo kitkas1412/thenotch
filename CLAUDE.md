@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Shared scheme `thenotch` builds the app and runs the `thenotchTests` target (Swift Testing, hosted in the app). No linter or formatter is configured (swift-format may be installed locally, but the repo has no config — don't run it on the codebase).
 
-Baseline as of 2026-11-14: the Debug build takes ~8 s and has 5 compiler warnings, all in older code (`IslandEnvironment.swift` `@Entry` closure, `IslandController.swift` `NSEvent` Sendable, `SystemVolume.swift` `UnsafeRawPointer`, `NotificationBannerWatcher.swift` main-actor static, `NowPlayingService.swift` `NSImageRep`/`Task` Sendable) plus an `appintentsmetadataprocessor` tooling note; a new warning is a regression. The tests (547 Swift Testing tests in 72 suites) pass in ~10 s, and XCTest's "Executed 0 tests" line is expected. When piping `xcodebuild` output through `grep`/`tail`, use `set -o pipefail` so a failing run isn't masked.
+Baseline as of 2026-11-14: the Debug build takes ~8 s and has 5 compiler warnings, all in older code (`IslandEnvironment.swift` `@Entry` closure, `IslandController.swift` `NSEvent` Sendable, `SystemVolume.swift` `UnsafeRawPointer`, `NotificationBannerWatcher.swift` main-actor static, `NowPlayingService.swift` `NSImageRep`/`Task` Sendable) plus an `appintentsmetadataprocessor` tooling note; a new warning is a regression. The tests (560 Swift Testing tests in 74 suites) pass in ~10 s, and XCTest's "Executed 0 tests" line is expected. When piping `xcodebuild` output through `grep`/`tail`, use `set -o pipefail` so a failing run isn't masked.
 
 ```bash
 # Build (Debug)
