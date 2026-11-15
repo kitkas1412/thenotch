@@ -44,8 +44,11 @@ struct ClipboardIslandTests {
         let suite = "thenotchTests.ClipboardIsland.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        // Not started: nothing reads the Keychain or the disk.
-        tool = ClipboardTool(settings: AppSettings(defaults: defaults), hotKeys: HotKeyCenter(), contributions: contributions)
+        // Not started; and if it were: a temp directory, an in-memory key, a private pasteboard.
+        tool = ClipboardTool(
+            settings: AppSettings(defaults: defaults), hotKeys: HotKeyCenter(), contributions: contributions,
+            persistence: ClipboardPersistence(directory: ClipboardFixtures.tempDirectory()),
+            keyProvider: InMemoryKeyStore(), pasteboard: NSPasteboard(name: .init(UUID().uuidString)))
     }
 
     private func key(_ code: Int, flags: NSEvent.ModifierFlags = []) -> NSEvent {

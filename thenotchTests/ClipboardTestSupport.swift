@@ -116,3 +116,15 @@ final class InMemoryKeyStore: ClipboardKeyProviding, @unchecked Sendable {
         }
     }
 }
+
+/// Polls `condition` (on the main actor) until it holds or `timeout` passes.
+/// For state that changes on a queue with no hook to await.
+@MainActor
+func waitUntil(timeout: Duration = .seconds(5), _ condition: @MainActor () -> Bool) async -> Bool {
+    let deadline = ContinuousClock.now + timeout
+    while !condition() {
+        if ContinuousClock.now >= deadline { return false }
+        try? await Task.sleep(for: .milliseconds(5))
+    }
+    return true
+}

@@ -148,23 +148,57 @@ struct ClipboardPersistence: Sendable {
 
     /// Deletes everything after the earlier operations, then runs `then`
     /// (replacing or deleting the key) on the queue, so later writes come
-    /// after both. Off the main thread: the Keychain may wait.
+    /// after both. Off the main thread: the Keychain may wait. Enqueued when
+    /// called, on the caller's thread: use `enqueueWipe` to keep the order
+    /// from an actor.
     func wipeInBackground(
         then keyAction: @escaping @Sendable () throws -> SymmetricKey?
     ) async -> WipeResult {
         await withCheckedContinuation { continuation in
-            queue.async {
-                var result = WipeResult(filesRemoved: removeDirectory())
-                do {
-                    result.key = try keyAction()
-                } catch let error as ClipboardKeyError {
-                    result.keyError = error
-                } catch {
-                    result.keyError = .keychain(errSecInternalError)
-                }
-                continuation.resume(returning: result)
-            }
+            enqueueWipe(then: keyAction) { continuation.resume(returning: $0) }
         }
+    }
+
+    /// Non-async `wipeInBackground`: the work is on the queue when this
+    /// returns (so a later `…Now` call comes after it); `completion` runs on
+    /// the queue.
+    func enqueueWipe(
+        then keyAction: @escaping @Sendable () throws -> SymmetricKey?,
+        completion: @escaping @Sendable (WipeResult) -> Void
+    ) {
+        queue.async {
+            var result = WipeResult(filesRemoved: removeDirectory())
+            do {
+                result.key = try keyAction()
+            } catch let error as ClipboardKeyError {
+                result.keyError = error
+            } catch {
+                result.keyError = .keychain(errSecInternalError)
+            }
+            completion(result)
+        }
+    }
+
+    /// Runs `work` (a Keychain operation) on the queue, after the earlier
+    /// operations and before the later ones. It is on the queue when this
+    /// returns; `completion` runs on the queue. Never call it from `work`.
+    func enqueue<T: Sendable>(
+        _ work: @escaping @Sendable () -> T, completion: @escaping @Sendable (T) -> Void
+    ) {
+        queue.async { completion(work()) }
+    }
+
+    /// Async `enqueue`. Prefer `enqueue` from an actor: this one hops off
+    /// the actor before it enqueues.
+    func runInBackground<T: Sendable>(_ work: @escaping @Sendable () -> T) async -> T {
+        await withCheckedContinuation { continuation in
+            enqueue(work) { continuation.resume(returning: $0) }
+        }
+    }
+
+    /// `enqueue` that returns once `work` is done. For quitting.
+    func runNow<T>(_ work: () throws -> T) rethrows -> T {
+        try queue.sync(execute: work)
     }
 
     /// Whether anything is saved (the directory exists), after the earlier
