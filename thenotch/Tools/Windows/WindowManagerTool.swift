@@ -14,6 +14,8 @@ final class WindowManagerTool: Tool {
     private var observation: ShortcutObservation?
     private var permissionObservers: [(center: NotificationCenter, token: NSObjectProtocol)] = []
     private var recheckTask: Task<Void, Never>?
+    private var snapper: WindowSnapper?
+    private var snapObservation = 0
 
     init(settings: AppSettings, hotKeys: HotKeyCenter) {
         self.settings = settings
@@ -21,7 +23,9 @@ final class WindowManagerTool: Tool {
     }
 
     func start() {
+        snapper = WindowSnapper(settings: settings)
         syncRegistrations()
+        observeSnapSetting()
         observation = settings.observeShortcuts { [weak self] actionID in
             guard let self, isTrusted,
                   let action = WindowAction.allCases.first(where: {
@@ -55,6 +59,9 @@ final class WindowManagerTool: Tool {
         recheckTask?.cancel()
         recheckTask = nil
         unregisterAll()
+        snapObservation += 1
+        snapper?.stop()
+        snapper = nil
     }
 
     private var isTrusted: Bool { AccessibilityPermission.isTrusted }
@@ -70,7 +77,22 @@ final class WindowManagerTool: Tool {
         }
     }
 
+    /// Re-arms itself until `stop()` bumps the generation.
+    private func observeSnapSetting() {
+        let generation = snapObservation
+        withObservationTracking {
+            _ = settings.windowSnapByDragging
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self, snapObservation == generation else { return }
+                snapper?.sync()
+                observeSnapSetting()
+            }
+        }
+    }
+
     private func syncRegistrations() {
+        snapper?.sync()
         if isTrusted {
             for action in WindowAction.allCases { register(action) }
         } else {

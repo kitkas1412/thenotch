@@ -171,6 +171,12 @@ final class AppSettings {
         didSet { defaults.set(clipboardRecordsRemote, forKey: Self.clipboardRecordsRemoteKey) }
     }
 
+    /// Snap windows to screen edges and corners by dragging them (Window
+    /// Management tool).
+    var windowSnapByDragging: Bool {
+        didSet { defaults.set(windowSnapByDragging, forKey: Self.windowSnapByDraggingKey) }
+    }
+
     static let clipboardLimits = [50, 100, 200, 500]
 
     /// Which apps Quit on Close applies to.
@@ -226,6 +232,7 @@ final class AppSettings {
         let delay = defaults.integer(forKey: Self.quitOnCloseDelayKey)
         quitOnCloseDelay = Self.quitOnCloseDelays.contains(delay) ? delay : 2
         quitOnCloseApps = defaults.stringArray(forKey: Self.quitOnCloseAppsKey) ?? []
+        windowSnapByDragging = defaults.object(forKey: Self.windowSnapByDraggingKey) as? Bool ?? true
     }
 
     func isEnabled(_ kind: ModuleKind) -> Bool {
@@ -346,6 +353,7 @@ final class AppSettings {
     private static let quitOnCloseModeKey = "quitOnClose.mode"
     private static let quitOnCloseDelayKey = "quitOnClose.delay"
     private static let quitOnCloseAppsKey = "quitOnClose.apps"
+    private static let windowSnapByDraggingKey = "windows.snapByDragging"
 
     private static func key(for kind: ModuleKind) -> String {
         "module.\(kind.rawValue).enabled"

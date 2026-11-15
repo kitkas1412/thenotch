@@ -42,6 +42,34 @@ struct AXWindow {
         return .success(AXWindow(element: element))
     }
 
+    /// The window of another app (not ours) under `point`, in AX coordinates.
+    static func window(atAX point: CGPoint) -> Result<AXWindow, Failure> {
+        guard AccessibilityPermission.isTrusted else { return .failure(.notTrusted) }
+        let systemWide = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(systemWide, messagingTimeout)
+        var hit: AXUIElement?
+        guard AXUIElementCopyElementAtPosition(systemWide, Float(point.x), Float(point.y), &hit) == .success,
+              let hit
+        else { return .failure(.noWindow) }
+        var pid: pid_t = 0
+        guard AXUIElementGetPid(hit, &pid) == .success else { return .failure(.noApplication) }
+        guard pid != ProcessInfo.processInfo.processIdentifier else { return .failure(.noApplication) }
+        AXUIElementSetMessagingTimeout(hit, messagingTimeout)
+        var role: CFTypeRef?
+        if AXUIElementCopyAttributeValue(hit, kAXRoleAttribute as CFString, &role) == .success,
+           (role as? String) == kAXWindowRole {
+            return .success(AXWindow(element: hit))
+        }
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(hit, kAXWindowAttribute as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXUIElementGetTypeID()
+        else { return .failure(.noWindow) }
+        // The type ID was checked above.
+        let element = value as! AXUIElement
+        AXUIElementSetMessagingTimeout(element, messagingTimeout)
+        return .success(AXWindow(element: element))
+    }
+
     var position: CGPoint? {
         point(kAXPositionAttribute)
     }
