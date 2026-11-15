@@ -27,6 +27,9 @@ final class ClipboardTool: Tool {
     @ObservationIgnored private let settings: AppSettings
     @ObservationIgnored private let hotKeys: HotKeyCenter
     @ObservationIgnored private let contributions: IslandContributions
+    @ObservationIgnored private let persistence: ClipboardPersistence
+    @ObservationIgnored private let keyProvider: ClipboardKeyProviding
+    @ObservationIgnored private let pasteboard: NSPasteboard
     @ObservationIgnored private var islandModule: ClipboardIslandModule?
     @ObservationIgnored private var hostObservation = 0
     @ObservationIgnored private var observation: ShortcutObservation?
@@ -36,23 +39,39 @@ final class ClipboardTool: Tool {
     /// The app that was in front when the history opened: where to paste.
     @ObservationIgnored private var pasteTarget: NSRunningApplication?
 
-    init(settings: AppSettings, hotKeys: HotKeyCenter, contributions: IslandContributions) {
+    /// `persistence` and `keyProvider` are injectable for tests; every store
+    /// the tool builds (also after `stop()`) uses them.
+    init(
+        settings: AppSettings, hotKeys: HotKeyCenter, contributions: IslandContributions,
+        persistence: ClipboardPersistence = .standard,
+        keyProvider: ClipboardKeyProviding = KeychainKeyStore(),
+        pasteboard: NSPasteboard = .general
+    ) {
         self.settings = settings
         self.hotKeys = hotKeys
         self.contributions = contributions
-        let parts = Self.makeParts(settings: settings)
+        self.persistence = persistence
+        self.keyProvider = keyProvider
+        self.pasteboard = pasteboard
+        let parts = Self.makeParts(
+            settings: settings, persistence: persistence, keyProvider: keyProvider, pasteboard: pasteboard)
         store = parts.store
         monitor = parts.monitor
         paster = parts.paster
     }
 
-    private static func makeParts(settings: AppSettings) -> (
+    private static func makeParts(
+        settings: AppSettings, persistence: ClipboardPersistence, keyProvider: ClipboardKeyProviding,
+        pasteboard: NSPasteboard
+    ) -> (
         store: ClipboardStore, monitor: ClipboardMonitor, paster: ClipboardPaster
     ) {
         let store = ClipboardStore(
-            persistence: .standard, keyProvider: KeychainKeyStore(), limit: settings.clipboardLimit)
-        let monitor = ClipboardMonitor(store: store, settings: settings)
-        return (store, monitor, ClipboardPaster(store: store, settings: settings, monitor: monitor))
+            persistence: persistence, keyProvider: keyProvider, limit: settings.clipboardLimit)
+        let monitor = ClipboardMonitor(store: store, settings: settings, pasteboard: pasteboard)
+        return (
+            store, monitor,
+            ClipboardPaster(store: store, settings: settings, monitor: monitor, pasteboard: pasteboard))
     }
 
     func start() {
@@ -119,7 +138,8 @@ final class ClipboardTool: Tool {
         // or the Keychain once the new store is in place.
         store.discard()
         ClipboardThumbnails.shared.removeAll()
-        let parts = Self.makeParts(settings: settings)
+        let parts = Self.makeParts(
+            settings: settings, persistence: persistence, keyProvider: keyProvider, pasteboard: pasteboard)
         store = parts.store
         monitor = parts.monitor
         paster = parts.paster
@@ -199,6 +219,8 @@ final class ClipboardTool: Tool {
         if settings.clipboardClearOnQuit {
             // Synchronous: the process exits right after.
             store.clearNow()
+            // A load or key replacement under way must not recreate the key.
+            store.discard()
         } else {
             store.saveNow()
         }

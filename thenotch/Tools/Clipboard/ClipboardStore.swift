@@ -90,8 +90,16 @@ final class ClipboardStore {
     @ObservationIgnored private var isLoading = false
     /// `clear()` ran while loading: what's read is dropped, the key replaced.
     @ObservationIgnored private var clearedWhileLoading = false
-    /// Bumped by each key replacement; only the latest one is applied.
+    /// Bumped by each key replacement and by `clearNow()`; only the latest
+    /// replacement is applied, and a `load()` that began under an older one
+    /// is dropped.
     @ObservationIgnored private var keyGeneration = 0
+    /// Key replacements queued or running (also the stale ones): `load()`
+    /// waits for them to end, so it can't read the key before they're done.
+    @ObservationIgnored private var keyReplacementsInFlight = 0
+    /// Counts every `clear()`; gates a mid-load wipe's failure report, so a
+    /// stale one isn't shown after a later `clear()`.
+    @ObservationIgnored private var clearCount = 0
     /// Replaced by another store: nothing touches the disk or the Keychain.
     @ObservationIgnored private(set) var isDiscarded = false
 
@@ -133,13 +141,18 @@ final class ClipboardStore {
     /// the saved history in the background, once (again while the key is
     /// unavailable). Entries added meanwhile stay in front of the saved ones.
     func load() async {
-        guard let persistence, !isDiscarded, !isLoaded || needsKeyRetry, !isLoading else { return }
+        guard let persistence, !isDiscarded, !isLoaded || needsKeyRetry, !isLoading,
+              keyReplacementsInFlight == 0 else { return }
         isLoading = true
+        let generation = keyGeneration
         let provider = keyProvider
-        let resolution = await Task.detached(priority: .utility) {
-            Self.resolveKey(provider)
-        }.value
-        guard !isDiscarded else {
+        // On the persistence queue, in order with the wipes and key
+        // replacements. The closure runs inline on the main actor, so it is
+        // enqueued before `load()` first suspends.
+        let resolution = await withCheckedContinuation { continuation in
+            persistence.enqueue({ Self.resolveKey(provider) }) { continuation.resume(returning: $0) }
+        }
+        guard !isDiscarded, keyGeneration == generation else {
             isLoading = false
             return
         }
@@ -149,7 +162,7 @@ final class ClipboardStore {
         switch resolution {
         case .key(let key):
             let result = await persistence.loadInBackground(key: key)
-            guard !isDiscarded else {
+            guard !isDiscarded, keyGeneration == generation else {
                 isLoading = false
                 return
             }
@@ -290,10 +303,21 @@ final class ClipboardStore {
     @discardableResult
     func clear() -> Task<Void, Never>? {
         guard !isDiscarded else { return nil }
+        clearCount += 1
         forgetHistory()
         guard let persistence else { return nil }
         guard isLoaded, !isLoading else {
-            persistence.wipe()
+            // Enqueued now; a failed delete is reported when it ends.
+            let count = clearCount
+            persistence.enqueueWipe(then: { nil }) { [weak self] result in
+                guard !result.filesRemoved else { return }
+                Task { @MainActor in
+                    // Not if a later `clear()` has run since.
+                    guard let self, !self.isDiscarded, self.clearCount == count else { return }
+                    self.lastStorageIssue = self.key == nil && self.lastStorageIssue?.isKeyUnavailable == true
+                        ? .notDeletedKeyUnavailable : .notDeleted
+                }
+            }
             clearedWhileLoading = isLoading
             return nil
         }
@@ -307,13 +331,18 @@ final class ClipboardStore {
         guard !isDiscarded else { return }
         forgetHistory()
         guard let persistence else { return }
+        // A `load()` under way is dropped when its result arrives.
         keyGeneration += 1
+        clearedWhileLoading = false
         key = nil
+        // Waits for the queue: a pending Keychain prompt delays it.
         if !persistence.wipeNow() {
             Self.log.error("Clipboard history not fully deleted on quit")
         }
         do {
-            try keyProvider.delete()
+            // On the queue, after any key operation already asked for.
+            let provider = keyProvider
+            try persistence.runNow { try provider.delete() }
         } catch {
             Self.log.error("Clipboard key can't be deleted: \(Self.describe(error), privacy: .public)")
         }
@@ -353,10 +382,21 @@ final class ClipboardStore {
         guard let persistence else { return nil }
         key = nil
         keyGeneration += 1
+        keyReplacementsInFlight += 1
         let generation = keyGeneration
         let provider = keyProvider
+        // Enqueued now, before the task runs: a `clearNow()` right after
+        // comes after the rotation.
+        let (results, continuation) = AsyncStream<ClipboardPersistence.WipeResult>.makeStream()
+        persistence.enqueueWipe(then: { try provider.rotate() }) {
+            continuation.yield($0)
+            continuation.finish()
+        }
         return Task { [weak self] in
-            let result = await persistence.wipeInBackground { try provider.rotate() }
+            // Also when cancelled: `load()` waits for this counter.
+            defer { self?.keyReplacementsInFlight -= 1 }
+            var iterator = results.makeAsyncIterator()
+            guard let result = await iterator.next() else { return }
             guard let self, !self.isDiscarded, self.keyGeneration == generation else { return }
             self.keyReplaced(result)
         }
@@ -400,7 +440,10 @@ final class ClipboardStore {
     func saveNow() {
         guard let persistence, !isDiscarded else { return }
         guard let pendingSave, let key else {
-            persistence.waitForPendingWrites()
+            // Loading without a key: nothing of this store is queued, and a
+            // Keychain prompt may hold the queue. Unless `clear()` ran meanwhile:
+            // its wipe is queued and must finish before the process exits.
+            if !(isLoading && self.key == nil && !clearedWhileLoading) { persistence.waitForPendingWrites() }
             return
         }
         pendingSave.cancel()
