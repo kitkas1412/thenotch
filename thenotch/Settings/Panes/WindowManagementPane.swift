@@ -13,6 +13,7 @@ struct WindowManagementPane: View {
     var hotKeys: HotKeyCenter
 
     @State private var isAccessibilityTrusted = AccessibilityPermission.isTrusted
+    @State private var isNativeTilingOn = NativeTiling.isEdgeDragCurrentlyEnabled()
 
     private var isToolOn: Bool { settings.isToolEnabled(.windowManagement) }
 
@@ -56,6 +57,31 @@ struct WindowManagementPane: View {
             }
 
             if isToolOn {
+                Section {
+                    Toggle(isOn: Binding(
+                        get: { settings.windowSnapByDragging },
+                        set: { settings.windowSnapByDragging = $0 }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Snap windows by dragging")
+                            Text("Drag a window to an edge or corner.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if settings.windowSnapByDragging && isNativeTilingOn {
+                        SettingsNotice(
+                            "macOS also tiles windows dragged to screen edges; turn it off in Desktop & Dock.",
+                            kind: .actionNeeded,
+                            action: ("Open Desktop & Dock…", {
+                                if let url = URL(string: "x-apple.systempreferences:com.apple.Desktop-Settings.extension") {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            })
+                        )
+                    }
+                }
+
                 ForEach(Self.groups, id: \.title) { group in
                     Section(group.title) {
                         ForEach(group.actions) { windowAction in
@@ -73,7 +99,7 @@ struct WindowManagementPane: View {
                         }
                     }
                     .disabled(ShortcutAction.actions(for: .windowManagement).allSatisfy(isDefault))
-                    SettingsNote("macOS 15 and later has its own window tiling: Globe or Fn + Control shortcuts, and dragging a window to an edge (System Settings › Desktop & Dock). They work alongside these; if a shortcut collides, change ours. Full-screen windows aren't moved.")
+                    SettingsNote("macOS 15 and later has its own window tiling with Globe or Fn + Control shortcuts (System Settings › Desktop & Dock). They work alongside these; if a shortcut collides, change ours. Full-screen windows aren't moved.")
                 }
             }
         }
@@ -124,5 +150,6 @@ struct WindowManagementPane: View {
 
     private func refreshPermission() {
         isAccessibilityTrusted = AccessibilityPermission.isTrusted
+        isNativeTilingOn = NativeTiling.isEdgeDragCurrentlyEnabled()
     }
 }
