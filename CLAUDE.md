@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Shared scheme `thenotch` builds the app and runs the `thenotchTests` target (Swift Testing, hosted in the app). No linter or formatter is configured (swift-format may be installed locally, but the repo has no config — don't run it on the codebase).
 
-Baseline as of 2026-11-14: the Debug build takes ~8 s and has 5 compiler warnings, all in older code (`IslandEnvironment.swift` `@Entry` closure, `IslandController.swift` `NSEvent` Sendable, `SystemVolume.swift` `UnsafeRawPointer`, `NotificationBannerWatcher.swift` main-actor static, `NowPlayingService.swift` `NSImageRep`/`Task` Sendable) plus an `appintentsmetadataprocessor` tooling note; a new warning is a regression. The tests (518 Swift Testing tests in 65 suites) pass in ~10 s, and XCTest's "Executed 0 tests" line is expected. When piping `xcodebuild` output through `grep`/`tail`, use `set -o pipefail` so a failing run isn't masked.
+Baseline as of 2026-11-14: the Debug build takes ~8 s and has 5 compiler warnings, all in older code (`IslandEnvironment.swift` `@Entry` closure, `IslandController.swift` `NSEvent` Sendable, `SystemVolume.swift` `UnsafeRawPointer`, `NotificationBannerWatcher.swift` main-actor static, `NowPlayingService.swift` `NSImageRep`/`Task` Sendable) plus an `appintentsmetadataprocessor` tooling note; a new warning is a regression. The tests (547 Swift Testing tests in 72 suites) pass in ~10 s, and XCTest's "Executed 0 tests" line is expected. When piping `xcodebuild` output through `grep`/`tail`, use `set -o pipefail` so a failing run isn't masked.
 
 ```bash
 # Build (Debug)
@@ -42,13 +42,14 @@ The detailed per-area text lives in `architecture/`, read on demand (not importe
 - **Island and Notch tool** (`thenotch/Tools/Notch/NotchTool`, `thenotch/Core/`): `NotchTool` owns the `IslandController`, which drives the borderless `IslandPanel` over the notch; hover grows the island, a click opens it (`HoverPolicy`), state is in `IslandState`, drawing in `IslandView`. Details: [architecture/island.md](architecture/island.md).
 - **Island modules** (`thenotch/Modules/<Name>/`, service + module + views): features are `IslandModule`s publishing `LiveActivity`s through `ActivityCenter`. To add one, add a case to `ModuleKind` (`thenotch/Settings/AppSettings.swift`); its `rawValue` must equal the module's `id`. Built in: Now Playing, Battery, Shelf, Volume & Brightness (`Modules/HUD`), Bluetooth, Notifications, AI Agents (`Modules/ClaudeCode`). Contributed modules (a tool adds one through `IslandContributions`) and file drops are in the island reference. Details: [architecture/modules.md](architecture/modules.md) and [architecture/island.md](architecture/island.md).
 - **Design system**: the island is always black (forced dark color scheme), so views use semantic styles (`.primary`, `.secondary`) and the tokens in `DESIGN.md` / `Core/UI/DesignSystem/` (shared views in `Core/UI/Components/`), not literal sizes, opacities or colors. Menu panel UI (System Monitor) uses system fonts, colors and controls instead.
-- **Other tools** (System Monitor, Clipboard, Window Management, Quit on Close; `thenotch/Tools/`): System Monitor samples CPU, memory, network and disk for the menu panel; Clipboard keeps an encrypted history shown in the island; Window Management moves windows with global shortcuts; Quit on Close quits an app when its last window closes. Details: [architecture/tools.md](architecture/tools.md).
+- **Other tools** (System Monitor, Clipboard, Window Management, Quit on Close; `thenotch/Tools/`): System Monitor samples CPU, memory, network and disk for the menu panel; Clipboard keeps an encrypted history shown in the island; Window Management moves windows with global shortcuts or by dragging them to a screen edge; Quit on Close quits an app when its last window closes. Details: [architecture/tools.md](architecture/tools.md).
 - The Xcode project uses **file-system synchronized groups**: any file added under `thenotch/` is automatically part of the target; no `project.pbxproj` edits are needed when adding/moving files.
 
 ## Traps
 
 - Do not add a `WindowGroup`; the island is AppKit.
 - Tests run hosted in the app: `AppDelegate` skips `ToolHost.start()` when `XCTestConfigurationFilePath` is set, so `xcodebuild test` doesn't start a second live copy of the tools. Keep it that way.
+- Global `keyDown` monitors don't receive keys during a window-server drag (a title-bar drag): poll `CGEventSource.keyState` instead, as `WindowSnapper` does for Esc.
 - `MediaKeyTap` sees every key press and macOS waits for it: it must never wait on the main thread.
 - Never script an app that isn't running (`tell application` would launch it).
 - Don't add `-N` to the hooks' `nc` command: on macOS nc it is a probe count, not shutdown-on-EOF, and it would break the hook silently.
