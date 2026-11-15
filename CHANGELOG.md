@@ -10,6 +10,7 @@ All notable changes to thenotch are documented here. The format follows
 
 - Clipboard: keeps a history of what you copy, shown in the island. Open it with ⌃⌘V or from the Clipboard tab that appears when you click the notch and the history has items (it needs Notch on, and Clipboard on in Settings › Clipboard). It has a search field, one line per item, and the history is encrypted on this Mac. Copies from password managers are skipped.
 - Quit on Close: quits an app a moment after you close its last window (1, 2 or 5 seconds, 2 by default). It is off by default; turn it on in Settings › Quit on Close, which needs Accessibility access. Choose whether it applies to all apps except the ones you list, or only to the ones you list. Finder, the Dock and other system apps are never quit, and an app that still has a window, including on another Space or in full screen, is left alone.
+- Window Management: drag a window to the left or right edge for a half, to the top edge to maximize it, or to a corner for a quarter. A preview shows where it will land; release to snap, or press Esc to cancel. Dragging a snapped window away gives it back its earlier size. It is on by default once Window Management is on (Settings › Window Management › Snap windows by dragging) and needs Accessibility access. If macOS's own tiling by dragging is also on, Settings suggests turning it off in Desktop & Dock.
 
 ### Fixed
 
